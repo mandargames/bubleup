@@ -1,0 +1,215 @@
+name: iPhone unsigned IPA cloud build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dot/ios-cloud-build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-device-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    name: Export Unity ARM64 iPhone project
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check Unity activation prerequisites
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$UNITY_EMAIL" || -z "$UNITY_PASSWORD" ]]; then
+            echo '::error::Configure UNITY_EMAIL and UNITY_PASSWORD in repository Actions secrets. Do not put credentials in source files or chat.'
+            exit 1
+          fi
+          if [[ -z "$UNITY_LICENSE" && -z "$UNITY_SERIAL" ]]; then
+            echo '::error::Unity activation is required: configure UNITY_LICENSE for Personal, or UNITY_SERIAL for an eligible paid license. See https://game.ci/docs/github/activation/ . This workflow does not need Apple credentials.'
+            exit 1
+          fi
+          if [[ -n "$UNITY_LICENSE" && -n "$UNITY_SERIAL" ]]; then
+            echo '::error::Configure one Unity activation method, UNITY_LICENSE or UNITY_SERIAL, rather than both.'
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Export Xcode project with Unity 6000.3.9f1
+        uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4 (verified tag commit)
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: 6000.3.9f1
+          targetPlatform: iOS
+          buildMethod: PocketToys.CI.IOSDeviceBuild.Build
+          buildsPath: build
+          buildName: iOS
+          versioning: None
+          dockerWorkspacePath: /tmp/bubleup-unity
+      - name: Package Xcode project preserving executable permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d build/iOS/Unity-iPhone.xcodeproj
+          tar -czf ios-device-xcode.tar.gz -C build iOS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-device-xcode
+          path: ios-device-xcode.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  compile:
+    name: Compile and package unsigned iPhone IPA
+    needs: export
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ios-device-xcode
+          path: incoming
+      - name: Restore export at its original absolute path
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bubleup-unity/build
+          tar -xzf incoming/ios-device-xcode.tar.gz -C /tmp/bubleup-unity/build
+          xcodebuild -version
+          xcodebuild -showsdks
+      - name: Build ARM64 for a physical iPhone without Apple signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          project=/tmp/bubleup-unity/build/iOS
+          xcodebuild \
+            -project "$project/Unity-iPhone.xcodeproj" \
+            -scheme Unity-iPhone \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/ios-device-derived" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM= \
+            build 2>&1 | tee xcodebuild.log
+      - name: Verify device binaries and package the unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          products="$RUNNER_TEMP/ios-device-derived/Build/Products/Release-iphoneos"
+          app=$(find "$products" -maxdepth 1 -type d -name '*.app' -print -quit)
+          if [[ -z "$app" ]]; then
+            echo '::error::Xcode did not produce a physical-device .app.'
+            exit 1
+          fi
+
+          # ARM64 alone is insufficient: Apple Silicon simulators also use ARM64.
+          # Check the bundle metadata and Mach-O platform before publishing an IPA.
+          python3 - "$app" <<'PY'
+          from pathlib import Path
+          import plistlib
+          import re
+          import subprocess
+          import sys
+
+          app = Path(sys.argv[1])
+          with (app / "Info.plist").open("rb") as stream:
+              info = plistlib.load(stream)
+          assert info["CFBundleSupportedPlatforms"] == ["iPhoneOS"], "Not an iPhoneOS app"
+          assert info["DTPlatformName"] == "iphoneos", "Incorrect Xcode platform"
+          assert 1 in info["UIDeviceFamily"], "The bundle does not support iPhone"
+          assert info.get("CFBundleIdentifier"), "Missing bundle identifier"
+          unity_framework = app / "Frameworks" / "UnityFramework.framework"
+          assert unity_framework.is_dir(), "Embedded UnityFramework is missing"
+
+          def verify_binary(binary):
+              assert binary.is_file(), f"Missing executable: {binary}"
+              architectures = subprocess.check_output(
+                  ["xcrun", "lipo", "-archs", str(binary)], text=True
+              ).split()
+              assert architectures == ["arm64"], f"Incorrect architecture: {binary}: {architectures}"
+              build = subprocess.check_output(
+                  ["xcrun", "vtool", "-show-build", str(binary)], text=True
+              )
+              platforms = re.findall(r"^\s*platform\s+(\S+)\s*$", build, re.MULTILINE)
+              assert platforms == ["IOS"], f"Not a physical iOS binary: {binary}: {build}"
+              print(f"Verified ARM64 / IOS: {binary.relative_to(app)}")
+
+          verify_binary(app / info["CFBundleExecutable"])
+          for framework in sorted(app.rglob("*.framework")):
+              with (framework / "Info.plist").open("rb") as stream:
+                  framework_info = plistlib.load(stream)
+              verify_binary(framework / framework_info["CFBundleExecutable"])
+          for library in sorted(app.rglob("*.dylib")):
+              verify_binary(library)
+          print(f"Bundle: {info['CFBundleIdentifier']}; minimum iOS: {info['MinimumOSVersion']}")
+          PY
+
+          staging=$(mktemp -d "$RUNNER_TEMP/ios-device-payload.XXXXXX")
+          mkdir -p "$staging/Payload"
+          # Keep the entire app, including embedded frameworks and Unity data.
+          ditto --norsrc --noextattr "$app" "$staging/Payload/$(basename "$app")"
+          ipa="$GITHUB_WORKSPACE/PocketToys-ios-device-unsigned.ipa"
+          (cd "$staging" && COPYFILE_DISABLE=1 /usr/bin/zip -qry "$ipa" Payload)
+          /usr/bin/unzip -tq "$ipa"
+          shasum -a 256 "$ipa" | awk '{print $1 "  PocketToys-ios-device-unsigned.ipa"}' > PocketToys-ios-device-unsigned.ipa.sha256
+          cat > INSTALL.txt <<'TXT'
+          Pocket Toys: unsigned ARM64 iPhone IPA
+
+          This IPA was compiled for a physical iPhone. It is not signed or
+          provisioned, so iOS cannot install or launch it directly.
+
+          Use AltStore Classic / AltServer to sign and install the IPA with your
+          own Apple Account. Keep Apple credentials on your own computer; the
+          GitHub workflow does not request or receive them. AltStore must sign
+          the app and its embedded frameworks, including UnityFramework.
+
+          AltStore Classic setup: https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows
+
+          Compilation and binary checks do not verify device installation,
+          launch, touch input, motion sensors, haptics, rendering, or gameplay.
+          TXT
+          {
+            echo '### Unsigned iPhone IPA compiled'
+            echo '- Verified ARM64 and physical iOS platform in the app and embedded frameworks.'
+            echo '- Download PocketToys-ios-device-unsigned, unzip the artifact, and import the .ipa into AltStore Classic.'
+            echo '- The app must be signed and provisioned on your own computer before it can run on iPhone.'
+            echo '- No Apple credentials or TestFlight/App Store upload are used in this workflow.'
+            echo '- Device installation, launch, controls, rendering, and gameplay remain unverified.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: PocketToys-ios-device-unsigned
+          path: |
+            PocketToys-ios-device-unsigned.ipa
+            PocketToys-ios-device-unsigned.ipa.sha256
+            INSTALL.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Upload Xcode build log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-device-xcode-log
+          path: xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7

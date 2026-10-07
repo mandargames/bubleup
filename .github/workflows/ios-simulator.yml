@@ -2,9 +2,6 @@ name: iOS Simulator cloud build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dot/ios-cloud-build
 
 permissions:
   contents: read
@@ -144,3 +141,4 @@ jobs:
           path: xcodebuild.log
           if-no-files-found: ignore
           retention-days: 7
+
