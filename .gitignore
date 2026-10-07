@@ -1,0 +1,59 @@
+# Unity-generated project state and local build outputs
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Backups/
+/.utmp/
+
+# Generated IDE and operating-system files
+/.vs/
+/.idea/
+/.vscode/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.opendb
+*.VC.db
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Unity diagnostic and IDE integration outputs
+/Assets/AssetStoreTools*
+/Assets/Plugins/Editor/JetBrains*
+sysinfo.txt
+*.log
+*.apk
+*.aab
+*.ipa
+*.app
+*.unitypackage
+
+# Credentials and platform signing material
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+
+# Player progress and opt-in diagnostic files
+pocket-toys-v1.json*
+local-diagnostics.jsonl

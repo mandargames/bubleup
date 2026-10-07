@@ -1,0 +1,5 @@
+{
+  "name": "PocketToys.WaterRingToss",
+  "rootNamespace": "PocketToys.WaterRingToss",
+  "references": ["PocketToys.Core", "Unity.ugui"]
+}

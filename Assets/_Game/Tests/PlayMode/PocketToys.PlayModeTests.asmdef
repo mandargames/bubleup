@@ -1,0 +1,5 @@
+{
+  "name": "PocketToys.PlayModeTests",
+  "references": ["PocketToys.Core", "PocketToys.WaterRingToss", "Unity.ugui"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

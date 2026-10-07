@@ -1,0 +1,6 @@
+{
+  "name": "PocketToys.EditModeTests",
+  "references": ["PocketToys.Core", "PocketToys.WaterRingToss"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

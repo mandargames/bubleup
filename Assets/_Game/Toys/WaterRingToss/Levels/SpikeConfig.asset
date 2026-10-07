@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dac3b883b42d9a845a0fce97deb97e4d, type: 3}
+  m_Name: SpikeConfig
+  m_EditorClassIdentifier: PocketToys.WaterRingToss::PocketToys.WaterRingToss.WaterRingTossConfig
+  prototypeMaterial: {fileID: 2100000, guid: 404b6a33b03612a48b221c6a827ad2cc, type: 2}
+  tankSize: {x: 5.2, y: 6.8}
+  ringStart: {x: -1.1, y: -2.5}
+  pegTip: {x: 0, y: 0.8}
+  pegLength: 1.3
+  ringRadius: 0.38
+  ringTubeRadius: 0.085
+  settlingAcceleration: 2.2
+  linearDamping: 0.85
+  tiltAcceleration: 5
+  turbulenceAcceleration: 0.12
+  maximumSpeed: 7
+  leftPump: {x: -1.5, y: -3}
+  rightPump: {x: 1.5, y: -3}
+  leftStrength: 5.7
+  rightStrength: 5.7
+  pumpWidth: 2.6
+  inwardForce: 0.65
+  pumpCooldown: 0.16
+  captureHalfWidth: 0.23
+  captureMaxSpeed: 4.5
+  captureSettleSeconds: 0.25

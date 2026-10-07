@@ -1,0 +1,5 @@
+{
+  "name": "PocketToys.Editor",
+  "references": ["PocketToys.WaterRingToss"],
+  "includePlatforms": ["Editor"]
+}

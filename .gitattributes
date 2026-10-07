@@ -1,0 +1,15 @@
+# Keep Unity YAML, source, and project metadata consistent across machines.
+* text=auto
+*.cs text eol=lf
+*.mm text eol=lf
+*.shader text eol=lf
+*.unity text eol=lf
+*.asset text eol=lf
+*.meta text eol=lf
+*.mat text eol=lf
+*.prefab text eol=lf
+*.asmdef text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=lf
+*.png binary

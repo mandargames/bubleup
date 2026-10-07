@@ -1,0 +1,159 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d96de461f3126c4db033e67911584fa, type: 3}
+  m_Name: FiveAdventures
+  m_EditorClassIdentifier: PocketToys.WaterRingToss::PocketToys.WaterRingToss.Game.CampaignDefinition
+  surfaceMaterial: {fileID: 2100000, guid: 75135f841cc30a84695ee099fbb0352c, type: 2}
+  waterMaterial: {fileID: 2100000, guid: 7608eaee11d5cee4b92df2f10c33edc9, type: 2}
+  glassMaterial: {fileID: 2100000, guid: fd33506efa6c0aa45914b762a96bb486, type: 2}
+  levels:
+  - id: water_01
+    title: First Splash
+    chapter: FIRST SPLASH
+    lesson: One ring. Find the rhythm.
+    hint: Lift above the peg, then ease into the landing.
+    rings:
+    - {x: -1.1, y: -1.85}
+    pegs:
+    - tip: {x: 0, y: 0.9}
+      length: 1.4
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 50
+    goldSeconds: 22
+    goldPumps: 8
+    starsRequired: 0
+  - id: water_02
+    title: Double Dip
+    chapter: FIND THE BALANCE
+    lesson: Two rings, one satisfying stack.
+    hint: Caught rings stay put. Guide the next one home.
+    rings:
+    - {x: -1.25, y: -1.85}
+    - {x: 1.25, y: -1.85}
+    pegs:
+    - tip: {x: 0, y: 1.15}
+      length: 1.65
+      capacity: 2
+      movement: 0
+      speed: 0.6
+    baffles: []
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 70
+    goldSeconds: 36
+    goldPumps: 15
+    starsRequired: 1
+  - id: water_03
+    title: Side by Side
+    chapter: FIND THE BALANCE
+    lesson: Choose a side. Share the rings.
+    hint: Dots below each peg show how many rings it holds.
+    rings:
+    - {x: -1.55, y: -1.85}
+    - {x: 0, y: -1.85}
+    - {x: 1.55, y: -1.85}
+    pegs:
+    - tip: {x: -1.1, y: 0.9}
+      length: 1.4
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.1, y: 1.35}
+      length: 1.8
+      capacity: 2
+      movement: 0
+      speed: 0.6
+    baffles: []
+    leftStrength: 5.6
+    rightStrength: 6.1
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 95
+    goldSeconds: 52
+    goldPumps: 23
+    starsRequired: 2
+  - id: water_04
+    title: The Scenic Route
+    chapter: CHOOSE YOUR PATH
+    lesson: Go around, then settle in.
+    hint: Use the side channels to lift past the golden baffle.
+    rings:
+    - {x: -1.55, y: -1.85}
+    - {x: 0, y: -1.85}
+    - {x: 1.55, y: -1.85}
+    pegs:
+    - tip: {x: -1.18, y: 1.6}
+      length: 1.35
+      capacity: 2
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.18, y: 1.6}
+      length: 1.35
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles:
+    - center: {x: 0, y: -0.05}
+      size: {x: 1.3, y: 0.18}
+      angle: 8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 115
+    goldSeconds: 65
+    goldPumps: 30
+    starsRequired: 3
+  - id: water_05
+    title: A Little Symphony
+    chapter: MASTER THE TOY
+    lesson: Four rings. Three pegs. Your rhythm.
+    hint: The middle peg drifts gently. Anticipate its return.
+    rings:
+    - {x: -1.8, y: -1.85}
+    - {x: -0.6, y: -1.85}
+    - {x: 0.6, y: -1.85}
+    - {x: 1.8, y: -1.85}
+    pegs:
+    - tip: {x: -1.45, y: 0.9}
+      length: 1.4
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 0, y: 1.75}
+      length: 1.5
+      capacity: 2
+      movement: 0.28
+      speed: 0.6
+    - tip: {x: 1.45, y: 0.9}
+      length: 1.4
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 140
+    goldSeconds: 80
+    goldPumps: 38
+    starsRequired: 4
