@@ -86,10 +86,16 @@ namespace PocketToys.WaterRingToss.Game
                         targetX = Mathf.Clamp(target.x + side * offset, -2.16f, 2.16f);
                     }
                     if (game.Level.baffles.Length > 0 && pos.y < .5f && Mathf.Abs(targetX) < 1.25f) targetX = targetX < 0f ? -1.5f : 1.5f;
+                    if (!selected.Threaded) targetX = ApproachOutsideLockedRings(game, pos, targetX);
                     game.Sensor.SetVirtualTilt(Mathf.Clamp(-2.8f * (pos.x - targetX) - 1.3f * velocity.x, -1f, 1f));
                     if (game.Elapsed < reverseUntil) game.Sensor.SetVirtualTilt(reverseDirection);
-                    else if ((selected.Threaded || LocalPlayerAudit.HasLiftClearance(game, pos)) && (!aboveTip || fullPeg) && (!selected.Threaded || fullPeg) && (selected.Threaded || pos.y < target.y - game.Level.pegs[peg].length - .6f || pos.y > target.y - game.Level.pegs[peg].length + .15f || Mathf.Abs(pos.x - targetX) < .08f) && pos.y < target.y + .5f && velocity.y < 1.6f)
-                    { game.Pump(pos.x <= 0f); stalled = 0f; }
+                    else if (stalled > 1.5f && !selected.Threaded)
+                    {
+                        reverseDirection = pos.x < targetX ? -1f : 1f;
+                        reverseUntil = game.Elapsed + .65f; stalled = 0f;
+                    }
+                    else if ((selected.Threaded || HasLiftClearance(game, pos)) && (!aboveTip || fullPeg) && (!selected.Threaded || fullPeg) && pos.y < target.y + .5f && velocity.y < 1.6f)
+                    { game.Pump(pos.x <= 0f); }
                     else if (stalled > 1.5f)
                     {
                         if (selected.Threaded || LocalPlayerAudit.HasLiftClearance(game, pos)) game.Pump(pos.x <= 0f);
@@ -124,12 +130,23 @@ namespace PocketToys.WaterRingToss.Game
             for (int i = 0; i < game.Level.pegs.Length; i++)
             {
                 var tip = game.PegTip(i); float underside = tip.y - game.Level.pegs[i].length;
-                float clearance = ToyPresentation.LandingWidth * .5f + FloatingRing.Radius + FloatingRing.Tube + .03f;
+                float clearance = ToyPresentation.LandingWidth * .5f + FloatingRing.OuterRadius + .03f;
                 if (position.y < underside - .1f && position.y > underside - .6f && Mathf.Abs(position.x - tip.x) < clearance) return false;
             }
             foreach (var baffle in game.Level.baffles)
                 if (position.y < baffle.center.y && position.y > baffle.center.y - .6f && Mathf.Abs(position.x - baffle.center.x) < baffle.size.x * .5f + .4f) return false;
+            foreach (var ring in game.Rings)
+                if (ring.Captured && position.y < ring.Body.position.y && position.y > ring.Body.position.y - FloatingRing.StackSpacing - .05f && Mathf.Abs(position.x - ring.Body.position.x) < FloatingRing.OuterRadius * 2f + .03f) return false;
             return true;
+        }
+        public static float ApproachOutsideLockedRings(GameSession game, Vector2 position, float desiredX)
+        {
+            // Plan an upward route beside the occupied rim before returning over the
+            // tip. This only steers the optional QA player; it never moves game bodies.
+            foreach (var ring in game.Rings)
+                if (ring.Captured && position.y < ring.Body.position.y + .14f && position.y > ring.Body.position.y - FloatingRing.StackSpacing - .1f && Mathf.Abs(position.x - ring.Body.position.x) < .98f)
+                    return Mathf.Clamp(ring.Body.position.x + (position.x < ring.Body.position.x ? -.92f : .92f), -2.16f, 2.16f);
+            return desiredX;
         }
         public static bool LiftLooseRing(GameSession game, FloatingRing selected)
         {

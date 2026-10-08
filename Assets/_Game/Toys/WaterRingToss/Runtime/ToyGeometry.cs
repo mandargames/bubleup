@@ -122,6 +122,34 @@ namespace PocketToys.WaterRingToss.Game
             mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
         }
 
+        // An injection-molded annulus: flat faces and walls with a small rolled edge.
+        public static Mesh MoldedRing(float innerRadius, float outerRadius, float depth, float bevel)
+        {
+            const int segments = 64, arcSteps = 4, sides = 4 * (arcSteps + 1);
+            bevel = Mathf.Min(bevel, Mathf.Min(depth, outerRadius - innerRadius) * .49f);
+            float radius = (outerRadius + innerRadius) * .5f, halfWidth = (outerRadius - innerRadius) * .5f;
+            var vertices = new Vector3[(segments + 1) * (sides + 1)];
+            var normals = new Vector3[vertices.Length]; var uv = new Vector2[vertices.Length];
+            var triangles = new int[segments * sides * 6]; int index = 0;
+            for (int i = 0; i <= segments; i++)
+            for (int j = 0; j <= sides; j++)
+            {
+                int profile = j % sides, corner = profile / (arcSteps + 1), step = profile % (arcSteps + 1);
+                float a = i * Mathf.PI * 2f / segments, b = (corner * 90f + step * 90f / arcSteps) * Mathf.Deg2Rad;
+                float r = radius + (corner == 0 || corner == 3 ? 1f : -1f) * (halfWidth - bevel) + Mathf.Cos(b) * bevel;
+                float z = (corner < 2 ? 1f : -1f) * (depth * .5f - bevel) + Mathf.Sin(b) * bevel;
+                int n = i * (sides + 1) + j;
+                vertices[n] = new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, z);
+                normals[n] = new Vector3(Mathf.Cos(a) * Mathf.Cos(b), Mathf.Sin(a) * Mathf.Cos(b), Mathf.Sin(b));
+                uv[n] = new Vector2((float)i / segments, (float)j / sides);
+                if (i == segments || j == sides) continue;
+                triangles[index++] = n; triangles[index++] = n + sides + 1; triangles[index++] = n + 1;
+                triangles[index++] = n + 1; triangles[index++] = n + sides + 1; triangles[index++] = n + sides + 2;
+            }
+            var mesh = new Mesh { name = "Flat molded ring", vertices = vertices, normals = normals, uv = uv, triangles = triangles };
+            mesh.RecalculateBounds(); return mesh;
+        }
+
         public static Mesh Torus(float radius, float tube)
         {
             const int segments = 64, sides = 16;

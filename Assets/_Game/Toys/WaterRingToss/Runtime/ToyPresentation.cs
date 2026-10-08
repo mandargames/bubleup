@@ -6,6 +6,7 @@ namespace PocketToys.WaterRingToss.Game
     public sealed class ToyPresentation : MonoBehaviour
     {
         public const float LandingWidth = .58f;
+        public const float PegStemRadius = .055f;
         public const float TankHalfWidth = 2.8f, TankBottom = -2.45f, TankTop = 4.75f, NozzleX = 1.95f;
         public Camera Camera { get; private set; }
         public PhysicsMaterial ContactMaterial { get; private set; }
@@ -74,14 +75,14 @@ namespace PocketToys.WaterRingToss.Game
             ringMaterials = new Material[RingColors.Length];
             for (int i = 0; i < ringMaterials.Length; i++)
             {
-                ringMaterials[i] = Surface("Ring color " + i, RingColors[i], .8f, .04f);
+                ringMaterials[i] = Surface("Molded ring color " + i, RingColors[i], .46f, 0f);
                 ringMaterials[i].EnableKeyword("_EMISSION");
                 ringMaterials[i].SetColor("_EmissionColor", Color(RingColors[i]) * .12f);
             }
             water = new Material(game.campaign.waterMaterial); resources.Add(water);
             water.mainTexture = Resources.Load<Texture2D>("CoralLagoon");
             glass = new Material(game.campaign.glassMaterial); resources.Add(glass);
-            ringMesh = ToyGeometry.Torus(.305f, .086f); resources.Add(ringMesh);
+            ringMesh = ToyGeometry.MoldedRing(FloatingRing.InnerRadius, FloatingRing.OuterRadius, FloatingRing.Thickness, .012f); resources.Add(ringMesh);
             backdrop = new Material(Resources.Load<Shader>("OceanBackdrop")); resources.Add(backdrop);
             // CreatePrimitive(Quad) implicitly needs MeshCollider, which is stripped
             // from iPhone players. This decorative surface needs no physics component.
@@ -209,7 +210,7 @@ namespace PocketToys.WaterRingToss.Game
                 pegBodies.Add(pegBody);
                 var stemContact = peg.gameObject.AddComponent<CapsuleCollider>();
                 stemContact.center = new Vector3(0, -definition.length * .5f, 0);
-                stemContact.radius = .055f; stemContact.height = definition.length + .11f;
+                stemContact.radius = PegStemRadius; stemContact.height = definition.length + PegStemRadius * 2f;
                 stemContact.sharedMaterial = ContactMaterial; stemContact.contactOffset = .003f;
                 Primitive("Stem", PrimitiveType.Cylinder, peg, new Vector3(0f, -definition.length * .5f, 0f), new Vector3(.11f, definition.length * .5f, .11f), pearl);
                 Primitive("Rounded tip", PrimitiveType.Sphere, peg, Vector3.zero, Vector3.one * .12f, pearl);
@@ -239,7 +240,7 @@ namespace PocketToys.WaterRingToss.Game
             {
                 var go = new GameObject("Floating ring " + (i + 1)); go.transform.SetParent(levelRoot, false);
                 var ring = go.AddComponent<FloatingRing>();
-                var visual = new GameObject("Enamel torus", typeof(MeshFilter), typeof(MeshRenderer)); visual.transform.SetParent(go.transform, false);
+                var visual = new GameObject("Flat molded ring", typeof(MeshFilter), typeof(MeshRenderer)); visual.transform.SetParent(go.transform, false);
                 visual.GetComponent<MeshFilter>().sharedMesh = ringMesh; visual.GetComponent<MeshRenderer>().sharedMaterial = ringMaterials[i % ringMaterials.Length];
                 ring.Visual = visual.transform;
                 ring.Initialize(game, i, game.Level.rings[i]); game.Register(ring);

@@ -14,11 +14,13 @@ Every completion earns one star. There is no countdown failure or energy system.
 
 Pegs and their compact shelves are solid. The shelves are narrower than a ring to leave generous upward routes beside each peg. Lift beside a shelf, steer the opening over the peg tip, then stop pumping to let the ring fall and settle. A ring crossing the tip has not scored yet; it must physically rest on the shelf or stack. Once locked, its solid colliders support subsequent rings, and it follows the peg if it moves.
 
-The chamber spans 5.6 units horizontally and 7.2 vertically. This bounded arena retains its proportions on short and tall phones instead of extending its ceiling to fill the screen. Ring and peg sizes remain unchanged; vertical jets at x = ±1.95 cover the outer lanes. Pumps do not add lateral force. Tilt or touch/keyboard steering determines horizontal travel. Peg layouts retain their authored positions.
+The chamber spans 5.6 units horizontally and 7.2 vertically. This bounded arena retains its proportions on short and tall phones instead of extending its ceiling to fill the screen. Flat molded rings retain the earlier outside diameter with a larger opening and thinner section; peg sizes and positions remain unchanged. Vertical jets at x = ±1.95 cover the outer lanes. Pumps do not add lateral force. Tilt or touch/keyboard steering determines horizontal travel.
 
 Gameplay shows the goal and landed-ring count. Time and pump records continue to be measured, but appear only when the player opens results after completion. Every finish receives the same main celebration. First-level contextual help and a revisitable pause-menu guide explain lift, steering and the need to let a ring settle. Restarting an active attempt requires an explicit choice; saved completions remain intact.
 
-Stack acceptance accounts for the ring's full projected height when contact geometry prevents deep nesting. A ring must still descend over the tip, be physically supported, settle at low speed and fit an available peg slot. No ring is teleported into a scoring position.
+Stack acceptance accounts for the ring's full projected height when contact geometry prevents deep nesting. Threading is recognised whenever the shaft is inside the opening below its tip, including an off-centre entry that first touches the rim. It does not depend on crossing a narrow invisible line in one physics step. A ring must still be physically supported, settle at low speed and fit an available peg slot. No ring is teleported into a scoring position. A ring on an already full peg must be lifted off and guided to a free slot.
+
+Proposed colour/weight types, mini-ring group play and new level lessons are recorded in [Ring design](Research/RING_DESIGN.md). They remain prototype designs; the five current levels still use identical ring behaviour and require every ring to land.
 
 Five total stars unlock Apricot enamel; ten unlock Moonstone. These are cosmetic changes.
 

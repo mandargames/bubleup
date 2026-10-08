@@ -1,3 +1,11 @@
+## 2026-10-08 - Unreleased ring landing and shape repair
+
+- Reproduced a valid off-centre shelf landing that never scored. Replaced the narrow one-step tip-crossing test with recognition of the shaft inside the physical opening, retaining support, settling, height and capacity requirements.
+- Replaced inflated-looking torus rings with flat molded bands, larger openings, small edge bevels and softer highlights. Thin rounded compound contacts replace the old thick collision tube; the outside diameter stays essentially unchanged.
+- Added regressions for off-centre landings, full-peg limits and recovery from side contact with a locked ring. Updated the optional QA controller to plan around occupied rims without changing player controls or moving bodies directly.
+- Validation: 17 EditMode and 29 PlayMode tests passed, including all five levels through pump/steering controls. Reviewed tall and short phone previews. No new mobile package or physical-device verification in this repair session.
+- Added Docs/Research/RING_DESIGN.md with before/after renders, proposed colour/weight identities and agile mini-ring group levels. Those new mechanics remain designs for prototyping.
+
 ## 2026-10-08 - Research baseline implementation (0.2.4, build 5)
 
 - Replaced the stretched tall-phone tank with a bounded, proportionally framed arena. Narrower casing keeps rings prominent; the header and touch targets clear the simulated safe areas.

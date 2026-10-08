@@ -5,10 +5,10 @@ namespace PocketToys.WaterRingToss.Game
 {
     public sealed class FloatingRing : MonoBehaviour
     {
-        public const float Radius = .305f, Tube = .086f, Pitch = 58f;
+        public const float OuterRadius = .39f, InnerRadius = .25f, Thickness = .07f, Pitch = 58f;
         // Nested rings can sit lower, but their full projected height is possible
         // when a neighboring ring shifts the contact points in a stack.
-        public static readonly float StackSpacing = 2f * (Radius * Mathf.Cos(Pitch * Mathf.Deg2Rad) + Tube);
+        public static readonly float StackSpacing = 2f * (OuterRadius * Mathf.Cos(Pitch * Mathf.Deg2Rad) + Thickness * .5f * Mathf.Sin(Pitch * Mathf.Deg2Rad));
         const float PumpDuration = .22f;
         public Rigidbody Body { get; private set; }
         public Transform Visual;
@@ -17,7 +17,7 @@ namespace PocketToys.WaterRingToss.Game
         public bool Threaded => PegIndex >= 0;
         public event Action Contact;
         GameSession game;
-        Vector2 previous, lockedOffset;
+        Vector2 lockedOffset;
         Vector3 savedVelocity, savedAngularVelocity, pendingImpulse;
         bool paused;
         float seed, seatedTime, lastContact, pumpRemaining, supportTime = -1f;
@@ -30,7 +30,7 @@ namespace PocketToys.WaterRingToss.Game
             Body.mass = .035f;
             Body.useGravity = false; // Settling is gravity minus buoyancy, applied at every height.
             Body.linearDamping = game.Level.damping;
-            // Keep the original stable ring angle: rolling a torus sideways on a peg can
+            // Keep the stable ring angle: rolling a ring sideways on a peg can
             // wedge it because this toy deliberately constrains movement to one plane.
             Body.constraints = RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotation;
             Body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
@@ -41,21 +41,24 @@ namespace PocketToys.WaterRingToss.Game
             Body.rotation = Quaternion.Euler(Pitch, 0, 0);
             transform.SetPositionAndRotation(Body.position, Body.rotation);
             if (Visual != null) Visual.localRotation = Quaternion.identity;
-            previous = start;
 
-            // Convex capsule segments preserve the torus's real opening and support CCD.
-            // The visible mesh and collision shapes share the same rigid-body rotation.
+            // Two thin rounded contact rails approximate the flat band. Their outside,
+            // opening and thickness match the mesh without sharp box corners that
+            // can snag neighboring rings. Capsules retain continuous collision checks.
             const int segments = 16;
+            float contactRadius = Thickness * .5f;
+            for (int rail = 0; rail < 2; rail++)
             for (int i = 0; i < segments; i++)
             {
+                float radius = rail == 0 ? InnerRadius + contactRadius : OuterRadius - contactRadius;
                 float a = i * Mathf.PI * 2f / segments, b = (i + 1) * Mathf.PI * 2f / segments;
-                Vector3 from = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0) * Radius;
-                Vector3 to = new Vector3(Mathf.Cos(b), Mathf.Sin(b), 0) * Radius;
-                var part = new GameObject("Ring contact " + i); part.transform.SetParent(transform, false);
+                Vector3 from = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0) * radius;
+                Vector3 to = new Vector3(Mathf.Cos(b), Mathf.Sin(b), 0) * radius;
+                var part = new GameObject("Ring contact " + rail + "-" + i); part.transform.SetParent(transform, false);
                 part.transform.localPosition = (from + to) * .5f;
                 part.transform.localRotation = Quaternion.FromToRotation(Vector3.up, to - from);
                 var collider = part.AddComponent<CapsuleCollider>();
-                collider.radius = Tube; collider.height = Vector3.Distance(from, to) + Tube * 2f;
+                collider.radius = contactRadius; collider.height = Vector3.Distance(from, to) + Thickness;
                 collider.sharedMaterial = game.Presentation.ContactMaterial;
                 collider.contactOffset = .003f;
             }
@@ -95,7 +98,6 @@ namespace PocketToys.WaterRingToss.Game
             {
                 Body.isKinematic = false; Body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
                 Body.linearVelocity = savedVelocity; Body.angularVelocity = savedAngularVelocity;
-                previous = Body.position;
             }
         }
 
@@ -109,29 +111,30 @@ namespace PocketToys.WaterRingToss.Game
                 return;
             }
             var current = (Vector2)Body.position;
-            if (!Threaded && Body.linearVelocity.y < 0f)
+            if (!Threaded)
             {
                 for (int i = 0; i < game.Level.pegs.Length; i++)
                 {
                     var tip = game.PegTip(i);
-                    if (previous.y < tip.y || current.y > tip.y) continue;
-                    float t = (previous.y - tip.y) / Mathf.Max(.0001f, previous.y - current.y);
-                    if (Mathf.Abs(Mathf.Lerp(previous.x, current.x, t) - tip.x) > .15f) continue;
+                    // Use the shaft inside the opening, not a narrow one-frame tip
+                    // crossing. A rim can touch the tip, then slide into place later.
+                    // Colliders enforce entry; support and settling still earn the catch.
+                    if (current.y > tip.y || current.y < tip.y - game.Level.pegs[i].length + .05f) continue;
+                    if (!ContainsStem(current.x - tip.x)) continue;
                     PegIndex = i; seatedTime = 0f;
                     break;
                 }
             }
-            previous = current;
             if (Threaded)
             {
                 var tip = game.PegTip(PegIndex); var peg = game.Level.pegs[PegIndex];
-                if (current.y > tip.y + .25f || current.y < tip.y - peg.length - .1f || Mathf.Abs(current.x - tip.x) > Radius + Tube)
+                if (current.y > tip.y + .25f || current.y < tip.y - peg.length - .1f || Mathf.Abs(current.x - tip.x) > OuterRadius)
                 { PegIndex = -1; seatedTime = 0f; }
                 else
                 {
-                    float bottomY = tip.y - peg.length + .05f + Radius * Mathf.Cos(Pitch * Mathf.Deg2Rad) + Tube;
+                    float bottomY = tip.y - peg.length + .05f + StackSpacing * .5f;
                     bool supported = supportPeg == PegIndex && Time.fixedTime - supportTime < Time.fixedDeltaTime * 2.5f;
-                    bool seated = supported && current.y > bottomY - .12f && current.y < bottomY + (peg.capacity - 1) * StackSpacing + .12f && Mathf.Abs(current.x - tip.x) < .19f && Body.linearVelocity.magnitude < .5f;
+                    bool seated = supported && current.y > bottomY - .12f && current.y < bottomY + (peg.capacity - 1) * StackSpacing + .12f && ContainsStem(current.x - tip.x) && Body.linearVelocity.magnitude < .5f;
                     seatedTime = seated ? seatedTime + Time.fixedDeltaTime : 0f;
                     if (!Captured && seatedTime >= .18f && game.TryOccupy(PegIndex, out _))
                     {
@@ -157,6 +160,12 @@ namespace PocketToys.WaterRingToss.Game
             }
             float flutter = Mathf.Sin(game.Elapsed * 2.1f + seed) * .045f;
             Body.AddForce(new Vector3(game.Sensor.Tilt.x * 4f + flutter, -game.Level.settling, 0f) * Body.mass, ForceMode.Force);
+        }
+
+        static bool ContainsStem(float offset)
+        {
+            // Small contact tolerance covers the collider skin and moving-peg step.
+            return Mathf.Abs(offset) <= InnerRadius - ToyPresentation.PegStemRadius + .012f;
         }
 
         void OnCollisionStay(Collision collision) { TrackSupport(collision); }
