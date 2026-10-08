@@ -39,6 +39,7 @@ namespace PocketToys.WaterRingToss.Game
         public PegDefinition[] pegs;
         public BaffleDefinition[] baffles = Array.Empty<BaffleDefinition>();
         public CollectorDefinition[] collectors = Array.Empty<CollectorDefinition>();
+        public CurrentDefinition[] currents = Array.Empty<CurrentDefinition>();
         public int requiredCatches;
         public TankBiome biome;
         public float freezeSeconds;
@@ -54,6 +55,7 @@ namespace PocketToys.WaterRingToss.Game
         public int starsRequired;
         public int TargetCount => requiredCatches > 0 ? requiredCatches : rings.Length;
         public bool UsesCollectors => collectors != null && collectors.Length > 0;
+        public bool HasCurrents => currents != null && currents.Length > 0;
         public RingKind RingType(int index) => ringBehaviours != null && ringBehaviours.Length == rings.Length ? ringBehaviours[index].kind : RingKind.Standard;
 
         public bool Validate(out string reason)
@@ -89,6 +91,13 @@ namespace PocketToys.WaterRingToss.Game
                 if (fishInterval < 3f || fishSpeed < .5f || fishSpeed > 2f || fishLanes == null || fishLanes.Length == 0)
                 { reason = "Fish need visible, bounded crossing routes."; return false; }
                 foreach (float lane in fishLanes) if (lane < -.8f || lane > 3.8f) { reason = "Fish lane is outside the clear play area."; return false; }
+            }
+            if (HasCurrents)
+            {
+                if (currents.Length > CurrentDefinition.MaximumPerLevel)
+                { reason = "Too many current zones to present clearly."; return false; }
+                foreach (var current in currents) if (current == null || !current.Validate())
+                { reason = "Current zones need bounded geometry, a direction and a readable cycle."; return false; }
             }
             reason = null; return true;
         }

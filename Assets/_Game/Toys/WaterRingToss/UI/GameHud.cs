@@ -15,7 +15,7 @@ namespace PocketToys.WaterRingToss.Game
         Text progress, sensitivityLabel, controlsHint, homeSubtitle, lesson, environmentStatus;
         Slider lean;
         Font font, displayFont;
-        bool showResults;
+        bool showResults, showLevelTip;
         int levelPage;
         const int LevelsPerPage = 5;
         Sprite rounded, circle, starSprite;
@@ -157,7 +157,7 @@ namespace PocketToys.WaterRingToss.Game
             if (!sameScreen && game.Screen == GameScreen.Levels) levelPage = game.LevelIndex / LevelsPerPage;
             if (screenRoot != null) { screenRoot.gameObject.SetActive(false); Destroy(screenRoot.gameObject); }
             screenRoot = Stretch("Screen - " + game.Screen, safeArea); fade = screenRoot.gameObject.AddComponent<CanvasGroup>();
-            if (builtScreen != game.Screen) showResults = false;
+            if (builtScreen != game.Screen) { showResults = false; showLevelTip = false; }
             screenAge = sameScreen ? 10f : 0f; builtScreen = game.Screen; progress = null; leftPump = rightPump = null; lean = null;
             controlsHint = homeSubtitle = lesson = environmentStatus = null;
             switch (game.Screen)
@@ -203,7 +203,7 @@ namespace PocketToys.WaterRingToss.Game
             lesson = Label("", 0, 1, 24, muted, 635f, 54f);
             lesson.alignment = TextAnchor.MiddleLeft; lesson.rectTransform.pivot = new Vector2(0, .5f);
             lesson.rectTransform.anchoredPosition = new Vector2(24, -117);
-            if (game.Level.biome != TankBiome.Lagoon || game.Level.fishTraffic)
+            if (game.Level.biome != TankBiome.Lagoon || game.Level.fishTraffic || game.Level.HasCurrents)
             {
                 var status = Rect("Environment status", .5f, .5f, 480f, 52f);
                 Image(status, panel).raycastTarget = false;
@@ -274,7 +274,26 @@ namespace PocketToys.WaterRingToss.Game
 
         void Help()
         {
-            Overlay(.96f); Brand("HOW TO PLAY");
+            Overlay(.96f); Brand(showLevelTip ? "THIS ADVENTURE" : "HOW TO PLAY");
+            if (showLevelTip)
+            {
+                Label(game.Level.title, .5f, .80f, 38, cream, 620, 80, true);
+                Label(game.Level.lesson, .5f, .68f, 26, gold, 600, 100);
+                Label(game.Level.hint, .5f, .52f, 23, cream, 600, 140);
+                string rule = game.Level.freezeSeconds > 0
+                    ? "Finish before " + game.Level.freezeSeconds.ToString("0") + " seconds.\nThe countdown stays paused here.\nA frozen attempt can be retried; earned stars stay safe."
+                    : game.Level.HasCurrents
+                    ? "Arrows show the current's area and direction.\nBright arrows flow; dim arrows warn; an outline rests.\nPumps and steering remain available. No time limit."
+                    : game.Level.fishTraffic
+                    ? "An edge warning appears before each fish.\nWait or steer around it. Landed rings stay locked.\nThere is no time limit."
+                    : game.Level.UsesCollectors
+                    ? "Let rings settle inside the open trays.\nThe goal counter shows how many you need.\nCollected rings stay safe. There is no time limit."
+                    : "Lift beside a peg, steer above its tip, then settle.\nDots below it show its capacity.\nLanded rings stay locked. There is no time limit.";
+                Label(rule, .5f, .33f, 21, muted, 620, 160);
+                Button("CONTROLS", .29f, .1f, 270, 96, panel, () => { showLevelTip = false; Rebuild(); });
+                Button("GOT IT", .71f, .1f, 270, 96, gold, game.CloseHelp);
+                return;
+            }
             Label("Lift. Steer. Let it settle.", .5f, .81f, 36, cream, 650, 70, true);
             Label("1   Tap a pump to lift nearby rings.\nLeft pump lifts on the left; right on the right.", .5f, .66f, 23, cream, 600, 110);
             Label(game.Sensor.UseSensor ? "2   Gently tilt to steer left or right.\nFind a comfortable position in Settings,\nthen tap Calibrate." : "2   Slide the steering control left or right.\nRelease to stop steering. You can pump,\nthen steer with the same finger.", .5f, .47f, 23, cream, 600, 150);
@@ -282,7 +301,8 @@ namespace PocketToys.WaterRingToss.Game
             string timing = game.Level.freezeSeconds > 0 ? "Finish before " + game.Level.freezeSeconds.ToString("0") + "s. Pause stops the countdown." : "This level has no time limit.";
             Label(goal + "\n" + timing, .5f, .285f, 22, cream, 620, 120);
             Label("Mint: light (1 mark) · Coral: standard (2)\nViolet: heavy (3) · Small gold: agile mini", .5f, .177f, 18, muted, 620, 52);
-            Button("GOT IT", .5f, .1f, 430, 96, gold, game.CloseHelp);
+            Button("LEVEL TIP", .29f, .1f, 270, 96, panel, () => { showLevelTip = true; Rebuild(); });
+            Button("GOT IT", .71f, .1f, 270, 96, gold, game.CloseHelp);
         }
 
         void Frozen()

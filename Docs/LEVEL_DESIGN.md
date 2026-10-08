@@ -1,6 +1,6 @@
 # Pocket Toys adventures
 
-The source campaign now has eleven stages. The first five are the introduction below; six new prototypes introduce weights, mini-ring collection, a timed freeze, lava lift and fish. See [the expansion record](Research/NEXT_LEVELS.md) for the new layouts, rules and pending verification. Building and gameplay testing this expansion are deferred at the owner's request.
+The source campaign now has fifteen stages. The first five are the introduction below; ten new prototypes introduce weights, mini-ring collection, timed freezes, lava lift and fish, then combine these into route and timing challenges. See [the expansion record](Research/NEXT_LEVELS.md) for the new layouts, rules and pending verification. Building and gameplay testing this expansion are deferred at the owner's request.
 
 The editable source is `Assets/_Game/Toys/WaterRingToss/Levels/FiveAdventures.asset`. Select it in Unity's Inspector. The editor setup only creates initial content when the asset is absent; rebuilding does not replace designer edits.
 
@@ -22,7 +22,7 @@ Gameplay shows the goal and landed-ring count. Time and pump records appear in o
 
 Stack acceptance accounts for the ring's full projected height when contact geometry prevents deep nesting. Threading is recognised whenever the shaft is inside the opening below its tip, including an off-centre entry that first touches the rim. It does not depend on crossing a narrow invisible line in one physics step. A ring must still be physically supported, settle at low speed and fit an available peg slot. No ring is teleported into a scoring position. A ring on an already full peg must be lifted off and guided to a free slot.
 
-Colour/weight profiles and six new lessons are implemented as untested source prototypes in [Next levels](Research/NEXT_LEVELS.md). The original five use identical standard behaviour (coral, two marks) and require every ring to land. Bubble Garden requires six of eight mini rings in trays. First Frost requires both rings within 60 seconds; pause stops its timer and expiry ends the attempt.
+Colour/weight profiles and ten new lessons are implemented as untested source prototypes in [Next levels](Research/NEXT_LEVELS.md). The original five use identical standard behaviour (coral, two marks) and require every ring to land. Bubble Garden requires six of eight mini rings in trays; Quiet Shoal requires four of six while steering through a steady current. First Frost allows 60 seconds and Frost Crossing allows 75; pause stops the timer and expiry ends the attempt. Thermal Staircase uses staggered lift zones, while Passing Window combines a drifting peg with warned fish crossings. Level tips are available from the paused help screen.
 
 Five total stars unlock Apricot enamel; ten unlock Moonstone. These are cosmetic changes.
 

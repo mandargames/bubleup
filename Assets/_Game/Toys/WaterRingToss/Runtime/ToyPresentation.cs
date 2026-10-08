@@ -41,6 +41,8 @@ namespace PocketToys.WaterRingToss.Game
         Transform fishVisual, fishWarning;
         Material[] ringMaterials;
         Mesh ringMesh, markMesh;
+        static readonly int[] CurrentBoundsIds = { Shader.PropertyToID("_CurrentBounds0"), Shader.PropertyToID("_CurrentBounds1"), Shader.PropertyToID("_CurrentBounds2"), Shader.PropertyToID("_CurrentBounds3") };
+        static readonly int[] CurrentFlowIds = { Shader.PropertyToID("_CurrentFlow0"), Shader.PropertyToID("_CurrentFlow1"), Shader.PropertyToID("_CurrentFlow2"), Shader.PropertyToID("_CurrentFlow3") };
         int particleCursor;
         sealed class Particle { public Transform transform; public Vector3 velocity; public float age, life, size; public bool celebration; }
         public static Color Color(string hex) { ColorUtility.TryParseHtmlString(hex, out var color); return color; }
@@ -83,6 +85,7 @@ namespace PocketToys.WaterRingToss.Game
             fishMaterial = Surface("Apricot reef fish", "#FFAD52", .42f);
             water = new Material(game.campaign.waterMaterial); resources.Add(water);
             water.mainTexture = Resources.Load<Texture2D>("CoralLagoon");
+            water.SetVector("_TankArea", new Vector4(-TankHalfWidth, TankBottom, TankHalfWidth * 2f, TankTop - TankBottom));
             glass = new Material(game.campaign.glassMaterial); resources.Add(glass);
             ringMesh = ToyGeometry.MoldedRing(FloatingRing.InnerRadius, FloatingRing.OuterRadius, FloatingRing.Thickness, .012f); resources.Add(ringMesh);
             markMesh = ToyGeometry.SoftDisc(.03f, .004f); resources.Add(markMesh);
@@ -350,6 +353,15 @@ namespace PocketToys.WaterRingToss.Game
             water.SetFloat("_VentSide", game.Environment.ThermalSide);
             water.SetFloat("_VentLift", !home && game.Environment.ThermalActive ? 1f : 0f);
             water.SetFloat("_VentWarning", !home && game.Environment.ThermalWarning ? 1f : 0f);
+            for (int i = 0; i < CurrentDefinition.MaximumPerLevel; i++)
+            {
+                bool visible = !home && game.Level.HasCurrents && i < game.Level.currents.Length;
+                if (!visible) { water.SetVector(CurrentFlowIds[i], Vector4.zero); continue; }
+                var current = game.Level.currents[i];
+                var direction = current.acceleration.normalized;
+                water.SetVector(CurrentBoundsIds[i], new Vector4(current.center.x, current.center.y, current.size.x * .5f, current.size.y * .5f));
+                water.SetVector(CurrentFlowIds[i], new Vector4(direction.x, direction.y, (float)current.StateAt(game.Elapsed), 1f));
+            }
             if (fishVisual != null)
             {
                 fishVisual.gameObject.SetActive(!home && game.Environment.FishActive);

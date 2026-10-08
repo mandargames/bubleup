@@ -1,3 +1,11 @@
+## 2026-10-08 - Four follow-on stages, fifteen total source prototypes
+
+- Added Frost Crossing (mixed weights, low baffle, 75-second freeze deadline), Thermal Staircase (staggered lift zones), Passing Window (moving peg and a warned fish route), and Quiet Shoal (four-of-six mini collection through a steady sideways current).
+- Added bounded, editable currents with an edge fade, direction, steady flow or warning/active/rest cycles. The water shader draws matching bounds and direction cues; reduced motion preserves their static meaning. Explicit zones replace the default nozzle currents when present.
+- Kept environment timing tied to the paused attempt clock and retained protected catches, restart behavior and saved level IDs. Added a paused Level tip page so authored hints and environmental rules are available in the game.
+- Extended the serialized campaign and initial-content recipe together; updated the existing content-count assertion to fifteen. Updated the Markdown design and deferred-verification record.
+- Source review and C# syntax parsing only. Unity compilation, shader rendering, automated/gameplay tests and packages remain deferred; no new mobile build was produced.
+
 ## 2026-10-08 - Unreleased eleven-stage expansion prototypes
 
 - Added consistent light/standard/heavy profiles and smaller agile rings, with colours, visible weight marks and explicit lift/settling/steering response. The original five layouts retain standard behaviour.

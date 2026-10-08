@@ -26,12 +26,19 @@ namespace PocketToys.WaterRingToss.Game
         public float Frost => game.Level.freezeSeconds > 0 ? Mathf.Clamp01(game.Elapsed / game.Level.freezeSeconds) : 0f;
         public int ThermalSide => Mathf.FloorToInt(game.Elapsed / Mathf.Max(5f, game.Level.thermalPeriod)) % 2;
         public float ThermalPhase => Mathf.Repeat(game.Elapsed, Mathf.Max(5f, game.Level.thermalPeriod));
-        public bool ThermalWarning => game.Level.biome == TankBiome.Lava && ThermalPhase < 1.5f;
-        public bool ThermalActive => game.Level.biome == TankBiome.Lava && ThermalPhase >= 1.5f && ThermalPhase < 4f;
+        public bool ThermalWarning => !game.Level.HasCurrents && game.Level.biome == TankBiome.Lava && ThermalPhase < 1.5f;
+        public bool ThermalActive => !game.Level.HasCurrents && game.Level.biome == TankBiome.Lava && ThermalPhase >= 1.5f && ThermalPhase < 4f;
 
         public Vector2 AccelerationAt(Vector2 position)
         {
-            if (!game.Playing || !ThermalActive) return Vector2.zero;
+            if (!game.Playing) return Vector2.zero;
+            if (game.Level.HasCurrents)
+            {
+                Vector2 sum = Vector2.zero;
+                foreach (var current in game.Level.currents) sum += current.AccelerationAt(position, game.Elapsed);
+                return sum;
+            }
+            if (!ThermalActive) return Vector2.zero;
             float x = ThermalSide == 0 ? -ToyPresentation.NozzleX : ToyPresentation.NozzleX;
             float influence = Mathf.Exp(-Mathf.Pow((position.x - x) / .65f, 2f));
             float ceilingFade = 1f - Mathf.InverseLerp(3.7f, ToyPresentation.TankTop, position.y);
@@ -43,6 +50,17 @@ namespace PocketToys.WaterRingToss.Game
             get
             {
                 if (game.Level.biome == TankBiome.Ice) return "FREEZES IN " + Mathf.CeilToInt(Mathf.Max(0f, game.Level.freezeSeconds - game.Elapsed)) + "s";
+                if (game.Level.HasCurrents)
+                {
+                    // The local arrows display every zone; the text prioritizes the next warning.
+                    foreach (var current in game.Level.currents)
+                        if (current.StateAt(game.Elapsed) == CurrentState.Warning)
+                            return current.label.ToUpperInvariant() + " IN " + Mathf.CeilToInt(current.WarningRemaining(game.Elapsed)) + "s";
+                    foreach (var current in game.Level.currents)
+                        if (current.StateAt(game.Elapsed) == CurrentState.Active)
+                            return current.label.ToUpperInvariant() + " · " + current.Direction;
+                    return "CURRENTS RESTING · RELEASE TO SETTLE";
+                }
                 if (game.Level.biome == TankBiome.Lava)
                 {
                     string side = ThermalSide == 0 ? "LEFT" : "RIGHT";
