@@ -36,12 +36,12 @@ namespace PocketToys.WaterRingToss.Game
         readonly List<Particle> particles = new List<Particle>();
         readonly List<Transform> ambientBubbles = new List<Transform>();
         readonly List<Transform> showcaseRings = new List<Transform>();
-        Material body, trim, metal, pearl, bubble, water, glass, dark, backdrop;
+        Material body, trim, metal, pearl, bubble, water, glass, dark, backdrop, fishMaterial;
         Transform backdropPlane;
+        Transform fishVisual, fishWarning;
         Material[] ringMaterials;
-        Mesh ringMesh;
+        Mesh ringMesh, markMesh;
         int particleCursor;
-        static readonly string[] RingColors = { "#FF6B59", "#FFCE52", "#B9A0FF", "#65E8BE", "#FF8EBD" };
         sealed class Particle { public Transform transform; public Vector3 velocity; public float age, life, size; public bool celebration; }
         public static Color Color(string hex) { ColorUtility.TryParseHtmlString(hex, out var color); return color; }
 
@@ -72,17 +72,20 @@ namespace PocketToys.WaterRingToss.Game
             pearl = Surface("Warm porcelain", "#FFF2CC", .78f);
             dark = Surface("Nozzle vents", "#23414D", .22f);
             bubble = Surface("Bubble glints", "#BFEFF3", .9f, .12f);
-            ringMaterials = new Material[RingColors.Length];
+            ringMaterials = new Material[4];
             for (int i = 0; i < ringMaterials.Length; i++)
             {
-                ringMaterials[i] = Surface("Molded ring color " + i, RingColors[i], .46f, 0f);
+                var profile = RingProfile.For((RingKind)i);
+                ringMaterials[i] = Surface(profile.Name + " ring", profile.Color, .46f, 0f);
                 ringMaterials[i].EnableKeyword("_EMISSION");
-                ringMaterials[i].SetColor("_EmissionColor", Color(RingColors[i]) * .12f);
+                ringMaterials[i].SetColor("_EmissionColor", Color(profile.Color) * .12f);
             }
+            fishMaterial = Surface("Apricot reef fish", "#FFAD52", .42f);
             water = new Material(game.campaign.waterMaterial); resources.Add(water);
             water.mainTexture = Resources.Load<Texture2D>("CoralLagoon");
             glass = new Material(game.campaign.glassMaterial); resources.Add(glass);
             ringMesh = ToyGeometry.MoldedRing(FloatingRing.InnerRadius, FloatingRing.OuterRadius, FloatingRing.Thickness, .012f); resources.Add(ringMesh);
+            markMesh = ToyGeometry.SoftDisc(.03f, .004f); resources.Add(markMesh);
             backdrop = new Material(Resources.Load<Shader>("OceanBackdrop")); resources.Add(backdrop);
             // CreatePrimitive(Quad) implicitly needs MeshCollider, which is stripped
             // from iPhone players. This decorative surface needs no physics component.
@@ -121,7 +124,7 @@ namespace PocketToys.WaterRingToss.Game
                 float x = side == 0 ? -NozzleX : NozzleX;
                 Disc("Pump socket", transform, new Vector3(x, -3.65f, .09f), .72f, .15f, trim);
                 Disc("Metal pump lip", transform, new Vector3(x, -3.65f, -.04f), .65f, .08f, metal);
-                pumpButtons[side] = Disc("Pump diaphragm", transform, new Vector3(x, -3.65f, -.18f), .57f, .22f, side == 0 ? ringMaterials[0] : ringMaterials[1]);
+                pumpButtons[side] = Disc("Pump diaphragm", transform, new Vector3(x, -3.65f, -.18f), .57f, .22f, side == 0 ? ringMaterials[(int)RingKind.Standard] : ringMaterials[(int)RingKind.Mini]);
                 for (int screw = 0; screw < 2; screw++)
                 {
                     var pos = new Vector3(side == 0 ? -2.93f : 2.93f, screw == 0 ? 5.15f : -4.39f, .26f);
@@ -194,6 +197,7 @@ namespace PocketToys.WaterRingToss.Game
             foreach (var resource in levelResources) Destroy(resource); levelResources.Clear(); pegBodies.Clear();
             foreach (var particle in particles) { particle.life = 0f; particle.transform.gameObject.SetActive(false); }
             levelRoot = new GameObject("Level - " + game.Level.title).transform; levelRoot.SetParent(transform, false);
+            fishVisual = fishWarning = null;
             float tankHeight = TankTop - TankBottom, tankCenter = (TankTop + TankBottom) * .5f;
             Wall("Left boundary", new Vector3(-TankHalfWidth - .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
             Wall("Right boundary", new Vector3(TankHalfWidth + .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
@@ -223,6 +227,8 @@ namespace PocketToys.WaterRingToss.Game
                 for (int slot = 0; slot < definition.capacity; slot++)
                     Disc("Capacity mark", peg, new Vector3(-.12f * (definition.capacity - 1) + slot * .24f, -definition.length - .2f, .04f), .042f, .015f, pearl);
             }
+            for (int i = 0; i < (game.Level.collectors?.Length ?? 0); i++) CreateCollector(i);
+            if (game.Level.fishTraffic) CreateFish();
             foreach (var baffle in game.Level.baffles)
             {
                 var shelf = Box("Water baffle", levelRoot, new Vector3(baffle.center.x, baffle.center.y, -.75f), new Vector3(baffle.size.x, baffle.size.y, .5f), .08f, metal, true);
@@ -241,10 +247,49 @@ namespace PocketToys.WaterRingToss.Game
                 var go = new GameObject("Floating ring " + (i + 1)); go.transform.SetParent(levelRoot, false);
                 var ring = go.AddComponent<FloatingRing>();
                 var visual = new GameObject("Flat molded ring", typeof(MeshFilter), typeof(MeshRenderer)); visual.transform.SetParent(go.transform, false);
-                visual.GetComponent<MeshFilter>().sharedMesh = ringMesh; visual.GetComponent<MeshRenderer>().sharedMaterial = ringMaterials[i % ringMaterials.Length];
+                var kind = game.Level.RingType(i); var profile = RingProfile.For(kind);
+                visual.GetComponent<MeshFilter>().sharedMesh = ringMesh; visual.GetComponent<MeshRenderer>().sharedMaterial = ringMaterials[(int)kind];
+                for (int mark = 0; mark < profile.Marks; mark++)
+                {
+                    float x = (mark - (profile.Marks - 1) * .5f) * .078f;
+                    var dot = new GameObject("Weight mark " + (mark + 1), typeof(MeshFilter), typeof(MeshRenderer)); dot.transform.SetParent(visual.transform, false);
+                    dot.transform.localPosition = new Vector3(x, -Mathf.Sqrt(.32f * .32f - x * x), -FloatingRing.Thickness * .5f - .002f);
+                    dot.GetComponent<MeshFilter>().sharedMesh = markMesh; dot.GetComponent<MeshRenderer>().sharedMaterial = dark;
+                }
                 ring.Visual = visual.transform;
                 ring.Initialize(game, i, game.Level.rings[i]); game.Register(ring);
             }
+        }
+
+        void CreateCollector(int index)
+        {
+            var definition = game.Level.collectors[index];
+            var tray = new GameObject("Collector " + (index + 1)).transform; tray.SetParent(levelRoot, false);
+            tray.localPosition = new Vector3(definition.center.x, definition.center.y, -.75f);
+            tray.gameObject.AddComponent<CollectorSurface>().Index = index;
+            for (int part = 0; part < 3; part++)
+            {
+                var size = part == 0 ? new Vector3(definition.width, .08f, .64f) : new Vector3(.08f, definition.height, .64f);
+                var position = part == 0 ? new Vector3(0, -definition.height * .5f, 0) : new Vector3((part == 1 ? -1 : 1) * definition.width * .5f, 0, 0);
+                var edge = Box(part == 0 ? "Collector floor" : "Collector side", tray, position, size, .025f, metal, true);
+                var contact = edge.gameObject.AddComponent<BoxCollider>(); contact.size = size; contact.sharedMaterial = ContactMaterial; contact.contactOffset = .003f;
+            }
+            for (int mark = 0; mark < definition.capacity; mark++)
+                Disc("Collector capacity", tray, new Vector3((mark - (definition.capacity - 1) * .5f) * .16f, -definition.height * .5f - .15f, -.1f), .033f, .01f, pearl);
+        }
+
+        void CreateFish()
+        {
+            fishVisual = new GameObject("Reef visitor").transform; fishVisual.SetParent(levelRoot, false);
+            Primitive("Fish body", PrimitiveType.Sphere, fishVisual, Vector3.zero, new Vector3(.62f, .3f, .18f), fishMaterial);
+            var upper = Primitive("Upper tail", PrimitiveType.Sphere, fishVisual, new Vector3(-.34f, .075f, .015f), new Vector3(.26f, .13f, .08f), fishMaterial);
+            upper.localRotation = Quaternion.Euler(0, 0, -30);
+            var lower = Primitive("Lower tail", PrimitiveType.Sphere, fishVisual, new Vector3(-.34f, -.075f, .015f), new Vector3(.26f, .13f, .08f), fishMaterial);
+            lower.localRotation = Quaternion.Euler(0, 0, 30);
+            Primitive("Fish eye", PrimitiveType.Sphere, fishVisual, new Vector3(.18f, .05f, -.08f), Vector3.one * .095f, pearl);
+            Primitive("Fish pupil", PrimitiveType.Sphere, fishVisual, new Vector3(.2f, .05f, -.127f), Vector3.one * .045f, dark);
+            fishWarning = Disc("Fish entry cue", levelRoot, Vector3.zero, .13f, .025f, fishMaterial);
+            fishVisual.gameObject.SetActive(false); fishWarning.gameObject.SetActive(false);
         }
 
         BoxCollider Wall(string name, Vector3 center, Vector3 size)
@@ -299,6 +344,21 @@ namespace PocketToys.WaterRingToss.Game
             backdropPlane.localPosition = new Vector3(0, Camera.transform.position.y, 4);
             backdropPlane.localScale = new Vector3(Camera.orthographicSize * Camera.aspect * 2.1f, Camera.orthographicSize * 2.1f, 1);
             water.SetFloat("_Motion", game.Settings.reduceMotion ? 0f : 1f);
+            water.SetFloat("_Biome", home ? 0f : (float)game.Level.biome);
+            water.SetFloat("_Frost", home ? 0f : game.Environment.Frost);
+            water.SetFloat("_WaterTime", home ? Time.time : game.Elapsed);
+            water.SetFloat("_VentSide", game.Environment.ThermalSide);
+            water.SetFloat("_VentLift", !home && game.Environment.ThermalActive ? 1f : 0f);
+            water.SetFloat("_VentWarning", !home && game.Environment.ThermalWarning ? 1f : 0f);
+            if (fishVisual != null)
+            {
+                fishVisual.gameObject.SetActive(!home && game.Environment.FishActive);
+                fishWarning.gameObject.SetActive(!home && game.Environment.FishWarning);
+                var position = game.Environment.FishPosition;
+                fishVisual.localPosition = new Vector3(position.x, position.y, -.95f);
+                fishVisual.localScale = new Vector3(game.Environment.FishDirection, 1, 1);
+                fishWarning.localPosition = new Vector3(-game.Environment.FishDirection * (TankHalfWidth - .16f), position.y, -1f);
+            }
             backdrop.SetFloat("_Motion", game.Settings.reduceMotion ? 0f : 1f);
             float drift = game.Settings.reduceMotion ? 0 : Time.time * .16f;
             for (int i = 0; i < showcaseRings.Count; i++)

@@ -27,10 +27,10 @@ namespace PocketToys.Tests
         [TearDown] public void Teardown() { Directory.Delete(directory, true); }
 
         [Test]
-        public void CampaignHasFiveValidDistinctLessons()
+        public void CampaignHasFiveIntroductoryAndSixNewLessons()
         {
             var campaign = AssetDatabase.LoadAssetAtPath<CampaignDefinition>("Assets/_Game/Toys/WaterRingToss/Levels/FiveAdventures.asset");
-            Assert.NotNull(campaign); Assert.That(campaign.levels.Length, Is.EqualTo(5));
+            Assert.NotNull(campaign); Assert.That(campaign.levels.Length, Is.EqualTo(11));
             Assert.IsTrue(campaign.Validate(out var reason), reason);
             Assert.That(campaign.levels[0].rings.Length, Is.EqualTo(1));
             Assert.That(campaign.levels[3].baffles.Length, Is.GreaterThan(0));

@@ -15,6 +15,11 @@ namespace PocketToys.WaterRingToss.Game
         public bool Captured { get; private set; }
         public int PegIndex { get; private set; } = -1;
         public bool Threaded => PegIndex >= 0;
+        public int CollectorIndex { get; private set; } = -1;
+        public RingKind Kind { get; private set; }
+        public RingProfile Profile { get; private set; }
+        public float CollisionRadius => OuterRadius * Profile.Scale;
+        public float ProjectedHeight => StackSpacing * Profile.Scale;
         public event Action Contact;
         GameSession game;
         Vector2 lockedOffset;
@@ -22,21 +27,25 @@ namespace PocketToys.WaterRingToss.Game
         bool paused;
         float seed, seatedTime, lastContact, pumpRemaining, supportTime = -1f;
         int supportPeg = -1;
+        int supportCollector = -1;
+        float collectorSupportTime = -1f;
 
         public void Initialize(GameSession session, int index, Vector2 start)
         {
             game = session; seed = index * 2.37f;
+            Kind = game.Level.RingType(index); Profile = RingProfile.For(Kind);
+            transform.localScale = Vector3.one * Profile.Scale;
             Body = gameObject.AddComponent<Rigidbody>();
-            Body.mass = .035f;
+            Body.mass = Profile.Mass;
             Body.useGravity = false; // Settling is gravity minus buoyancy, applied at every height.
-            Body.linearDamping = game.Level.damping;
+            Body.linearDamping = game.Level.damping * Profile.Damping;
             // Keep the stable ring angle: rolling a ring sideways on a peg can
             // wedge it because this toy deliberately constrains movement to one plane.
             Body.constraints = RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotation;
             Body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             Body.interpolation = RigidbodyInterpolation.Interpolate;
             Body.solverIterations = 12; Body.solverVelocityIterations = 6;
-            Body.maxLinearVelocity = 7f;
+            Body.maxLinearVelocity = Kind == RingKind.Mini ? 5.5f : 7f;
             Body.position = new Vector3(start.x, start.y, -.75f);
             Body.rotation = Quaternion.Euler(Pitch, 0, 0);
             transform.SetPositionAndRotation(Body.position, Body.rotation);
@@ -71,7 +80,7 @@ namespace PocketToys.WaterRingToss.Game
             float dx = Body.position.x - nozzle;
             float influence = Mathf.Exp(-dx * dx / 6.5f);
             float strength = (left ? game.Level.leftStrength : game.Level.rightStrength) * influence;
-            float lift = strength * Mathf.Lerp(1f, .72f, Mathf.InverseLerp(-2.4f, 3.6f, Body.position.y));
+            float lift = strength * Profile.Lift * Mathf.Lerp(1f, .72f, Mathf.InverseLerp(-2.4f, 3.6f, Body.position.y));
             // The peg shelters threaded rings from the jet. They still lift, but a
             // light tap should not throw an otherwise settled stack across the tank.
             if (Threaded) lift *= .45f;
@@ -81,6 +90,13 @@ namespace PocketToys.WaterRingToss.Game
             pendingImpulse += Vector3.up * (lift * Body.mass);
             pumpRemaining = PumpDuration;
             Body.WakeUp();
+        }
+
+        public void Nudge(Vector2 impulse)
+        {
+            if (paused || Captured || !game.Playing) return;
+            Body.AddForce((Vector3)impulse * (Body.mass * Profile.Nudge), ForceMode.Impulse);
+            seatedTime = 0f;
         }
 
         public void Pause(bool value)
@@ -106,11 +122,15 @@ namespace PocketToys.WaterRingToss.Game
             if (game == null || paused) return;
             if (Captured)
             {
-                var position = game.PegTip(PegIndex) + lockedOffset;
-                Body.MovePosition(new Vector3(position.x, position.y, Body.position.z));
+                if (PegIndex >= 0)
+                {
+                    var position = game.PegTip(PegIndex) + lockedOffset;
+                    Body.MovePosition(new Vector3(position.x, position.y, Body.position.z));
+                }
                 return;
             }
             var current = (Vector2)Body.position;
+            if (game.Level.UsesCollectors && CheckCollectorCatch(current)) return;
             if (!Threaded)
             {
                 for (int i = 0; i < game.Level.pegs.Length; i++)
@@ -128,25 +148,19 @@ namespace PocketToys.WaterRingToss.Game
             if (Threaded)
             {
                 var tip = game.PegTip(PegIndex); var peg = game.Level.pegs[PegIndex];
-                if (current.y > tip.y + .25f || current.y < tip.y - peg.length - .1f || Mathf.Abs(current.x - tip.x) > OuterRadius)
+                if (current.y > tip.y + .25f || current.y < tip.y - peg.length - .1f || Mathf.Abs(current.x - tip.x) > CollisionRadius)
                 { PegIndex = -1; seatedTime = 0f; }
                 else
                 {
-                    float bottomY = tip.y - peg.length + .05f + StackSpacing * .5f;
+                    float bottomY = tip.y - peg.length + .05f + ProjectedHeight * .5f;
                     bool supported = supportPeg == PegIndex && Time.fixedTime - supportTime < Time.fixedDeltaTime * 2.5f;
                     bool seated = supported && current.y > bottomY - .12f && current.y < bottomY + (peg.capacity - 1) * StackSpacing + .12f && ContainsStem(current.x - tip.x) && Body.linearVelocity.magnitude < .5f;
                     seatedTime = seated ? seatedTime + Time.fixedDeltaTime : 0f;
                     if (!Captured && seatedTime >= .18f && game.TryOccupy(PegIndex, out _))
                     {
-                        Captured = true;
                         // Lock only after a physical landing, preserving the resting position
                         // and solid colliders so later rings can stack on this one.
-                        lockedOffset = current - tip;
-                        pendingImpulse = Vector3.zero; pumpRemaining = 0f;
-                        Body.linearVelocity = Vector3.zero; Body.angularVelocity = Vector3.zero;
-                        Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-                        Body.isKinematic = true;
-                        game.OnRingCaptured(this);
+                        Lock(current - tip);
                         return;
                     }
                 }
@@ -159,13 +173,41 @@ namespace PocketToys.WaterRingToss.Game
                 Body.AddForce(impulse, ForceMode.Impulse);
             }
             float flutter = Mathf.Sin(game.Elapsed * 2.1f + seed) * .045f;
-            Body.AddForce(new Vector3(game.Sensor.Tilt.x * 4f + flutter, -game.Level.settling, 0f) * Body.mass, ForceMode.Force);
+            Vector2 environment = game.Environment.AccelerationAt(current) * Profile.Lift;
+            Body.AddForce((new Vector3(game.Sensor.Tilt.x * 4f * Profile.Steering + flutter, -game.Level.settling * Profile.Settling, 0f) + (Vector3)environment) * Body.mass, ForceMode.Force);
         }
 
-        static bool ContainsStem(float offset)
+        void Lock(Vector2 offset)
+        {
+            Captured = true; lockedOffset = offset;
+            pendingImpulse = Vector3.zero; pumpRemaining = 0f;
+            Body.linearVelocity = Vector3.zero; Body.angularVelocity = Vector3.zero;
+            Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            Body.isKinematic = true; game.OnRingCaptured(this);
+        }
+
+        bool CheckCollectorCatch(Vector2 current)
+        {
+            bool resting = false;
+            for (int i = 0; i < game.Level.collectors.Length; i++)
+            {
+                var collector = game.Level.collectors[i];
+                float bottom = collector.center.y - collector.height * .5f;
+                bool supported = supportCollector == i && Time.fixedTime - collectorSupportTime < Time.fixedDeltaTime * 2.5f;
+                if (!supported || Mathf.Abs(current.x - collector.center.x) > collector.width * .5f - CollisionRadius + .04f || current.y < bottom + .03f || current.y > bottom + collector.height + .03f || Body.linearVelocity.magnitude >= .5f) continue;
+                resting = true; seatedTime += Time.fixedDeltaTime;
+                if (seatedTime >= .18f && game.TryCollect(i))
+                { CollectorIndex = i; Lock(Vector2.zero); return true; }
+                break;
+            }
+            if (!resting) seatedTime = 0f;
+            return false;
+        }
+
+        bool ContainsStem(float offset)
         {
             // Small contact tolerance covers the collider skin and moving-peg step.
-            return Mathf.Abs(offset) <= InnerRadius - ToyPresentation.PegStemRadius + .012f;
+            return Mathf.Abs(offset) <= InnerRadius * Profile.Scale - ToyPresentation.PegStemRadius + .012f;
         }
 
         void OnCollisionStay(Collision collision) { TrackSupport(collision); }
@@ -173,13 +215,19 @@ namespace PocketToys.WaterRingToss.Game
         {
             var peg = collision.collider.GetComponentInParent<PegSurface>();
             var ring = collision.collider.GetComponentInParent<FloatingRing>();
+            var collector = collision.collider.GetComponentInParent<CollectorSurface>();
             // A threaded ring can rest on another ring even when that lower ring is
             // offset beside the peg; only this ring's own threading earns its slot.
             int index = peg != null ? peg.Index : ring != null && Threaded ? PegIndex : -1;
-            if (index < 0) return;
+            int collectorIndex = collector != null ? collector.Index : ring != null && ring.Captured ? ring.CollectorIndex : -1;
+            if (index < 0 && collectorIndex < 0) return;
             for (int i = 0; i < collision.contactCount; i++)
                 if (collision.GetContact(i).normal.y > .45f)
-                { supportPeg = index; supportTime = Time.fixedTime; break; }
+                {
+                    if (index >= 0) { supportPeg = index; supportTime = Time.fixedTime; }
+                    if (collectorIndex >= 0) { supportCollector = collectorIndex; collectorSupportTime = Time.fixedTime; }
+                    break;
+                }
         }
         void OnCollisionEnter(Collision collision)
         {

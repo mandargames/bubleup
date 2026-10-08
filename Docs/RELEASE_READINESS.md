@@ -1,6 +1,6 @@
 # Integrated local build — release readiness
 
-The approved delivery is five polished levels with the core game systems. This is a local playable beta, not a claim of store readiness or proven retention.
+The earlier delivery covered five levels with the core game systems. The owner has since approved further changes before building/testing: an eleven-stage source campaign with weights, mini-ring trays, timed ice, lava currents and fish. That expansion is **not yet compiled, rendered or gameplay-tested**; see [its verification plan](Research/NEXT_LEVELS.md). The historical five-level evidence below does not establish expansion readiness. This is not a claim of store readiness or proven retention.
 
 The October UX implementation and its current validation are tracked in [Research/IMPLEMENTATION.md](Research/IMPLEMENTATION.md). Earlier iPhone cloud builds compiled successfully and an earlier version launched according to the owner. Those results do not qualify a new candidate's phone behavior.
 
@@ -21,7 +21,7 @@ The October UX implementation and its current validation are tracked in [Researc
 
 Test at least a lower-powered Android phone, a recent Android phone and an iPhone. Check cold startup, 10-minute play, both pumps together, sensor absence, calibration in comfortable holding positions, touch-only play, headphone/speaker audio, interruptions, save recovery and safe areas. Record frame pacing and thermal behavior. The Windows GPU audit is not a mobile performance guarantee.
 
-Capture player observations for each level: whether the objective is understood, completion time, retries, accidental inputs, frustrating misses and whether another attempt feels appealing. Adjust the existing five levels before expanding the campaign.
+Capture player observations for every level: whether the objective is understood, completion time, retries, accidental inputs, frustrating misses and whether another attempt feels appealing. The expanded campaign's deadlines, group collection, new visuals and environmental effects need this review before release.
 
 ## Physics choice
 

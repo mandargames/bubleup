@@ -12,10 +12,12 @@ namespace PocketToys.WaterRingToss.Game
         public RectTransform Root { get; private set; }
         GameSession game;
         RectTransform safeArea, screenRoot, leftPump, rightPump;
-        Text progress, sensitivityLabel, controlsHint, homeSubtitle, lesson;
+        Text progress, sensitivityLabel, controlsHint, homeSubtitle, lesson, environmentStatus;
         Slider lean;
         Font font, displayFont;
         bool showResults;
+        int levelPage;
+        const int LevelsPerPage = 5;
         Sprite rounded, circle, starSprite;
         Texture2D roundedTexture, circleTexture, starTexture;
         CanvasGroup fade;
@@ -152,11 +154,12 @@ namespace PocketToys.WaterRingToss.Game
         void Rebuild()
         {
             bool sameScreen = screenRoot != null && builtScreen == game.Screen;
+            if (!sameScreen && game.Screen == GameScreen.Levels) levelPage = game.LevelIndex / LevelsPerPage;
             if (screenRoot != null) { screenRoot.gameObject.SetActive(false); Destroy(screenRoot.gameObject); }
             screenRoot = Stretch("Screen - " + game.Screen, safeArea); fade = screenRoot.gameObject.AddComponent<CanvasGroup>();
             if (builtScreen != game.Screen) showResults = false;
             screenAge = sameScreen ? 10f : 0f; builtScreen = game.Screen; progress = null; leftPump = rightPump = null; lean = null;
-            controlsHint = homeSubtitle = lesson = null;
+            controlsHint = homeSubtitle = lesson = environmentStatus = null;
             switch (game.Screen)
             {
                 case GameScreen.Home: Home(); break;
@@ -169,6 +172,7 @@ namespace PocketToys.WaterRingToss.Game
                 case GameScreen.Help: Help(); break;
                 case GameScreen.ConfirmRestart: ConfirmRestart(); break;
                 case GameScreen.Controls: Controls(); break;
+                case GameScreen.Frozen: Frozen(); break;
             }
             if (!string.IsNullOrEmpty(game.Progress.LastError)) Label("Save needs attention - " + game.Progress.LastError, .5f, .013f, 12, gold, 650f);
         }
@@ -180,7 +184,7 @@ namespace PocketToys.WaterRingToss.Game
             Label("Your pocket-sized escape.", .5f, .768f, 17, muted, 630f, 24f);
             homeSubtitle = Label("C O R A L   C L U B", .5f, .70f, 14, ink);
             Card(.5f, .177f, 620f, 300f);
-            Label("FIVE LITTLE ADVENTURES  ·  AT YOUR OWN PACE", .5f, .28f, 14, gold);
+            Label(game.campaign.levels.Length + " ADVENTURES · CALM PLAY + TIMED CHALLENGES", .5f, .28f, 14, gold);
             Button("LET'S PLAY  >", .5f, .215f, 554f, 88f, gold, () => game.StartLevel(game.LevelIndex));
             Button("ADVENTURES", .3f, .13f, 256f, 88f, Hex("#286675"), () => game.SetScreen(GameScreen.Levels));
             Button("TOY SHELLS", .7f, .13f, 256f, 88f, Hex("#286675"), () => game.SetScreen(GameScreen.Collection));
@@ -199,6 +203,12 @@ namespace PocketToys.WaterRingToss.Game
             lesson = Label("", 0, 1, 24, muted, 635f, 54f);
             lesson.alignment = TextAnchor.MiddleLeft; lesson.rectTransform.pivot = new Vector2(0, .5f);
             lesson.rectTransform.anchoredPosition = new Vector2(24, -117);
+            if (game.Level.biome != TankBiome.Lagoon || game.Level.fishTraffic)
+            {
+                var status = Rect("Environment status", .5f, .5f, 480f, 52f);
+                Image(status, panel).raycastTarget = false;
+                environmentStatus = Text(Stretch("Status text", status), "", 22, cream);
+            }
             leftPump = PumpButton(true); rightPump = PumpButton(false);
             controlsHint = Label(game.Sensor.UseSensor ? "TILT TO\nSTEER" : "PUMP TO\nLIFT", .5f, .09f, 24, ink, 152f, 64f, true);
             if (!game.Sensor.UseSensor)
@@ -253,7 +263,7 @@ namespace PocketToys.WaterRingToss.Game
         {
             Overlay(.9f); Brand("A LITTLE BREATHER");
             Label("Take your time.", .5f, .82f, 38, cream, 540f, 60f, true);
-            Label("Your rings are right where you left them.", .5f, .765f, 20, muted);
+            Label(game.Level.freezeSeconds > 0 ? "Countdown paused. Your rings stay here." : "Your rings are right where you left them.", .5f, .765f, 20, muted);
             Button("KEEP PLAYING", .5f, .66f, 550f, 96f, gold, game.Resume);
             Button("HOW TO PLAY", .5f, .555f, 550f, 88f, panel, game.OpenHelp);
             Button("SETTINGS", .5f, .45f, 550f, 88f, panel, game.OpenSettings);
@@ -268,8 +278,21 @@ namespace PocketToys.WaterRingToss.Game
             Label("Lift. Steer. Let it settle.", .5f, .81f, 36, cream, 650, 70, true);
             Label("1   Tap a pump to lift nearby rings.\nLeft pump lifts on the left; right on the right.", .5f, .66f, 23, cream, 600, 110);
             Label(game.Sensor.UseSensor ? "2   Gently tilt to steer left or right.\nFind a comfortable position in Settings,\nthen tap Calibrate." : "2   Slide the steering control left or right.\nRelease to stop steering. You can pump,\nthen steer with the same finger.", .5f, .47f, 23, cream, 600, 150);
-            Label("3   Let a ring fall over a peg's tip.\nIt counts when it rests on the shelf.\nLand every ring to finish. There is no time limit.", .5f, .28f, 23, cream, 610, 140);
+            string goal = game.Level.UsesCollectors ? "3   Let rings settle inside either tray.\nCollect " + game.TargetCount + " of " + game.Rings.Count + " to finish." : "3   Let rings fall over the peg tips.\nThey count when settled in an available slot.";
+            string timing = game.Level.freezeSeconds > 0 ? "Finish before " + game.Level.freezeSeconds.ToString("0") + "s. Pause stops the countdown." : "This level has no time limit.";
+            Label(goal + "\n" + timing, .5f, .285f, 22, cream, 620, 120);
+            Label("Mint: light (1 mark) · Coral: standard (2)\nViolet: heavy (3) · Small gold: agile mini", .5f, .177f, 18, muted, 620, 52);
             Button("GOT IT", .5f, .1f, 430, 96, gold, game.CloseHelp);
+        }
+
+        void Frozen()
+        {
+            Overlay(.94f); Brand("ICE CHALLENGE");
+            Label("The tank froze.", .5f, .72f, 42, cream, 620, 80, true);
+            Label(game.Caught + " / " + game.TargetCount + " rings landed this attempt.\nYour earned stars and completed levels are safe.", .5f, .6f, 23, muted, 620, 110);
+            Button("TRY AGAIN", .5f, .43f, 550, 96, gold, game.Restart);
+            Button("CHOOSE A LEVEL", .5f, .31f, 550, 88, panel, () => game.SetScreen(GameScreen.Levels));
+            Button("HOME", .5f, .19f, 550, 88, panel, game.Home);
         }
 
         void ConfirmRestart()
@@ -285,10 +308,13 @@ namespace PocketToys.WaterRingToss.Game
         {
             Overlay(.88f); Brand("YOUR LITTLE ADVENTURES");
             Label("Find your flow.", .5f, .855f, 36, cream, 630f, 55f, true);
-            Label("Land every ring to open the next adventure.", .5f, .807f, 20, muted);
-            for (int i = 0; i < game.campaign.levels.Length; i++)
+            int pages = Mathf.CeilToInt(game.campaign.levels.Length / (float)LevelsPerPage);
+            levelPage = Mathf.Clamp(levelPage, 0, pages - 1);
+            Label("Complete each goal to open the next · " + (levelPage + 1) + " / " + pages, .5f, .807f, 20, muted);
+            int first = levelPage * LevelsPerPage;
+            for (int i = first; i < Mathf.Min(first + LevelsPerPage, game.campaign.levels.Length); i++)
             {
-                int index = i; var level = game.campaign.levels[i]; float y = .714f - i * .122f;
+                int index = i; var level = game.campaign.levels[i]; float y = .714f - (i - first) * .122f;
                 bool unlocked = game.Unlocked(i); var record = game.Progress.Data.levels.Find(x => x.id == level.id);
                 var button = Button("", .5f, y, 626f, 136f, unlocked ? panel : Hex("#153641"), () => game.StartLevel(index), unlocked);
                 var rowColors = button.colors; rowColors.disabledColor = UnityEngine.Color.white; button.colors = rowColors;
@@ -304,12 +330,14 @@ namespace PocketToys.WaterRingToss.Game
                 else if (unlocked)
                 {
                     var goal = Rect("Star goal", .48f, .15f, 380f, 22f, button.transform);
-                    Text(goal, "TAKE YOUR TIME  /  NO TIME LIMIT", 13, gold, FontStyle.Normal, TextAnchor.MiddleLeft);
+                    Text(goal, level.freezeSeconds > 0 ? "TIMED ICE CHALLENGE · " + level.freezeSeconds.ToString("0") + "s" : level.UsesCollectors ? "COLLECT " + level.TargetCount + " OF " + level.rings.Length : "NO TIME LIMIT", 13, gold, FontStyle.Normal, TextAnchor.MiddleLeft);
                 }
                 Label(unlocked ? ">" : "LOCKED", .866f, y, unlocked ? 28 : 10, muted, 70f);
                 Stars(.78f, y + .019f, record?.stars ?? 0, 18f, 22f);
             }
-            Button("HOME", .5f, .083f, 260f, 50f, panel, game.Home);
+            Button("< PREV", .21f, .083f, 180f, 88f, panel, () => { levelPage--; Rebuild(); }, levelPage > 0);
+            Button("HOME", .5f, .083f, 170f, 88f, panel, game.Home);
+            Button("NEXT >", .79f, .083f, 180f, 88f, panel, () => { levelPage++; Rebuild(); }, levelPage + 1 < pages);
         }
 
         void Toggle(string title, string description, float y, Func<bool> value, Action<bool> set, bool interactable = true)
@@ -408,11 +436,16 @@ namespace PocketToys.WaterRingToss.Game
             if (homeSubtitle != null) PlaceAt(homeSubtitle.rectTransform, new Vector3(0f, 5.25f, -1f));
             if (game.Playing)
             {
-                progress.text = game.Caught + " / " + game.Rings.Count + " RINGS LANDED";
+                progress.text = game.Caught + " / " + game.TargetCount + (game.Level.UsesCollectors ? " RINGS COLLECTED" : " RINGS LANDED");
                 lesson.text = !game.Progress.Data.tutorialSeen && game.LevelIndex == 0
                     ? game.Pumps == 0 ? "Tap a pump to lift the ring. No need to hurry."
                     : game.Sensor.UseSensor ? "Tilt to guide it above the peg, then let it fall." : "Slide to guide it above the peg, then let it fall."
                     : game.Level.lesson;
+                if (environmentStatus != null)
+                {
+                    environmentStatus.text = game.Environment.Status;
+                    PlaceAt((RectTransform)environmentStatus.transform.parent, new Vector3(0f, 4.36f, -1f));
+                }
                 PlacePump(leftPump, game.Presentation.LeftButton); PlacePump(rightPump, game.Presentation.RightButton);
                 if (lean != null) PlaceAt(lean.GetComponent<RectTransform>(), new Vector3(0f, -5.18f, -1f));
                 PlaceAt(controlsHint.rectTransform, new Vector3(0f, -3.7f, -1f));

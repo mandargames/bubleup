@@ -27,7 +27,7 @@ namespace PocketToys.Core.Services
         AudioClip pump, tap, chime, success, soundtrack;
         bool soundOn = true, hapticsOn = true;
         int voice;
-        float lastContact;
+        float lastContact, lastCatch = float.NegativeInfinity;
         int pumpVariation;
         readonly HapticGate hapticGate = new HapticGate();
         #if UNITY_IOS && !UNITY_EDITOR
@@ -75,7 +75,13 @@ namespace PocketToys.Core.Services
             if (Time.unscaledTime - lastContact < .12f) return;
             lastContact = Time.unscaledTime; Play(tap, .3f);
         }
-        public void Catch(int count) { Play(chime, .48f, 1f + count * .035f); Haptic(1); }
+        public void Catch(int count)
+        {
+            // A group arriving together earns one restrained sound, not eight voices.
+            if (Time.unscaledTime - lastCatch >= .09f)
+            { lastCatch = Time.unscaledTime; Play(chime, .48f, 1f + Mathf.Min(count, 8) * .035f); }
+            Haptic(1);
+        }
         public void Click() { Play(tap, .3f, 1.4f); }
         public void Success() { Play(success, .56f); Haptic(2); }
 

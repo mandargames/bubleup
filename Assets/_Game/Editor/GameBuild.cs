@@ -51,7 +51,7 @@ namespace PocketToys.Editor
             QualitySettings.vSyncCount = 0;
             QualitySettings.antiAliasing = 4;
             AssetDatabase.SaveAssets();
-            Debug.Log("Integrated game ready: five authored levels and local progression.");
+            Debug.Log("Integrated game ready: " + campaign.levels.Length + " authored levels and local progression.");
         }
         static Material Material(string name, string shader)
         {
@@ -65,7 +65,7 @@ namespace PocketToys.Editor
             => new PegDefinition { tip = new Vector2(x, y), length = length, capacity = capacity, movement = movement };
 
         // One-time authoring recipe. Existing campaign assets are never overwritten by Setup.
-        static LevelDefinition[] InitialContent() => new[]
+        static LevelDefinition[] InitialContent() => AdventureExpansion.AppendTo(new[]
         {
             new LevelDefinition {
                 id="water_01", title="First Splash", chapter="FIRST SPLASH", lesson="One ring. Find the rhythm.",
@@ -101,7 +101,7 @@ namespace PocketToys.Editor
                 pegs=new[]{Peg(-1.45f,.9f,1.4f,1),Peg(0f,1.75f,1.5f,2,.28f),Peg(1.45f,.9f,1.4f,1)},
                 goldSeconds=80f,silverSeconds=140f,goldPumps=38,starsRequired=4
             }
-        };
+        });
 
         [MenuItem("Pocket Toys/Build integrated Windows game")]
         public static void Windows()

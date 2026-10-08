@@ -9,7 +9,7 @@ using DeviceInput = UnityEngine.Input;
 
 namespace PocketToys.WaterRingToss.Game
 {
-    public enum GameScreen { Home, Playing, Paused, Levels, Settings, Complete, Collection, Help, ConfirmRestart, Controls }
+    public enum GameScreen { Home, Playing, Paused, Levels, Settings, Complete, Collection, Help, ConfirmRestart, Controls, Frozen }
 
     public sealed class GameSession : MonoBehaviour
     {
@@ -23,6 +23,7 @@ namespace PocketToys.WaterRingToss.Game
         public ToyAudio Audio { get; private set; }
         public ToyPresentation Presentation { get; private set; }
         public GameHud Hud { get; private set; }
+        public LevelEnvironment Environment { get; private set; }
         public List<FloatingRing> Rings { get; } = new List<FloatingRing>();
         public int LevelIndex { get; private set; }
         public int Pumps { get; private set; }
@@ -31,9 +32,10 @@ namespace PocketToys.WaterRingToss.Game
         public float Elapsed { get; private set; }
         public bool Playing => Screen == GameScreen.Playing;
         public bool Ready { get; private set; }
+        public int TargetCount => Level.TargetCount;
         public string Notice { get; private set; }
         public event Action Changed;
-        int[] occupied;
+        int[] occupied, collected;
         float nextLeft, nextRight, completionRest;
         GameScreen settingsReturn = GameScreen.Home;
         GameScreen helpReturn = GameScreen.Paused;
@@ -49,6 +51,7 @@ namespace PocketToys.WaterRingToss.Game
             Sensor = gameObject.AddComponent<SensorInputService>();
             Sensor.smoothingSeconds = .16f;
             Audio = gameObject.AddComponent<ToyAudio>();
+            Environment = gameObject.AddComponent<LevelEnvironment>();
             Presentation = gameObject.AddComponent<ToyPresentation>();
             Presentation.Initialize(this);
             ApplySettings();
@@ -73,7 +76,7 @@ namespace PocketToys.WaterRingToss.Game
         public void StartLevel(int index)
         {
             if (!Unlocked(index)) return;
-            if (hasAttempt && Caught < Rings.Count) Analytics.Track("level_abandoned", Level.id, Elapsed, Pumps);
+            if (hasAttempt && Caught < TargetCount) Analytics.Track("level_abandoned", Level.id, Elapsed, Pumps);
             LevelIndex = index;
             Elapsed = 0f; Pumps = 0; Caught = 0; EarnedStars = 0;
             nextLeft = nextRight = completionRest = 0f;
@@ -89,7 +92,8 @@ namespace PocketToys.WaterRingToss.Game
 
         void CreateLevel()
         {
-            Rings.Clear(); occupied = new int[Level.pegs.Length];
+            Rings.Clear(); occupied = new int[Level.pegs.Length]; collected = new int[Level.collectors?.Length ?? 0];
+            Environment.ResetFor(this);
             Presentation.LoadLevel();
             foreach (var ring in Rings) ring.Pause(!Playing);
         }
@@ -101,10 +105,16 @@ namespace PocketToys.WaterRingToss.Game
             return peg.tip + Vector2.right * (Mathf.Sin(Elapsed * peg.speed) * peg.movement);
         }
         public int Occupied(int index) => occupied[index];
+        public int Collected(int index) => collected[index];
+        public bool TryCollect(int index)
+        {
+            if (!Playing || Caught >= TargetCount || collected[index] >= Level.collectors[index].capacity) return false;
+            collected[index]++; return true;
+        }
         public bool TryOccupy(int index, out int slot)
         {
             slot = occupied[index];
-            if (!Playing || slot >= Level.pegs[index].capacity) return false;
+            if (!Playing || Caught >= TargetCount || slot >= Level.pegs[index].capacity) return false;
             occupied[index]++; return true;
         }
 
@@ -126,7 +136,7 @@ namespace PocketToys.WaterRingToss.Game
 
         public void Pump(bool left)
         {
-            if (!Playing || Time.time < (left ? nextLeft : nextRight)) return;
+            if (!Playing || Caught >= TargetCount || Time.time < (left ? nextLeft : nextRight)) return;
             if (left) nextLeft = Time.time + .18f; else nextRight = Time.time + .18f;
             Pumps++;
             foreach (var ring in Rings) ring.Pump(left);
@@ -179,13 +189,30 @@ namespace PocketToys.WaterRingToss.Game
             if (!Ready) return;
             if (Playing)
             {
-                Elapsed += Time.deltaTime;
-                if (DeviceInput.GetKeyDown(KeyCode.Q) || DeviceInput.GetKeyDown(KeyCode.Space)) Pump(true);
-                if (DeviceInput.GetKeyDown(KeyCode.E)) Pump(false);
-                if (DeviceInput.GetKeyDown(KeyCode.R)) RequestRestart();
-                if (DeviceInput.GetKeyDown(KeyCode.C)) Calibrate();
-                completionRest = Caught == Rings.Count ? completionRest + Time.deltaTime : 0f;
-                if (completionRest >= .3f) CompleteLevel();
+                // A completed objective wins before the celebration delay can consume
+                // the last fraction of the ice timer. Pausing never advances Elapsed.
+                if (Caught >= TargetCount)
+                {
+                    completionRest += Time.deltaTime;
+                    if (completionRest >= .3f) CompleteLevel();
+                }
+                else
+                {
+                    Elapsed += Time.deltaTime;
+                    if (Level.freezeSeconds > 0f && Elapsed >= Level.freezeSeconds)
+                    {
+                        Elapsed = Level.freezeSeconds; hasAttempt = false;
+                        Analytics.Track("level_frozen", Level.id, Elapsed, Caught);
+                        SetScreen(GameScreen.Frozen);
+                    }
+                    else
+                    {
+                        if (DeviceInput.GetKeyDown(KeyCode.Q) || DeviceInput.GetKeyDown(KeyCode.Space)) Pump(true);
+                        if (DeviceInput.GetKeyDown(KeyCode.E)) Pump(false);
+                        if (DeviceInput.GetKeyDown(KeyCode.R)) RequestRestart();
+                        if (DeviceInput.GetKeyDown(KeyCode.C)) Calibrate();
+                    }
+                }
             }
             if (DeviceInput.GetKeyDown(KeyCode.Escape))
             {

@@ -11,15 +11,16 @@ namespace PocketToys.WaterRingToss.Game
     {
         [Serializable] sealed class Result
         {
-            public string platform, graphics, version;
+            public string platform, graphics, version, scope;
             public bool passed;
-            public int completedLevels, frames;
+            public int completedLevels, requiredLevels, availableLevels, frames;
             public float averageFrameMilliseconds, p95FrameMilliseconds;
             public string error;
         }
         static string output;
         readonly List<float> frames = new List<float>();
         string failure;
+        int requiredLevels, availableLevels;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Initialize()
         {
@@ -46,11 +47,14 @@ namespace PocketToys.WaterRingToss.Game
                 yield return null;
             }
             if (game == null || !game.Ready) { Finish(0, "Game did not initialize."); yield break; }
+            // This controller knows peg lessons, not tray quotas or environmental
+            // tactics. Keep its scope explicit until the expansion audit is authored.
+            availableLevels = game.campaign.levels.Length; requiredLevels = Mathf.Min(5, availableLevels);
             game.Settings.sound = false; game.Settings.music = false; game.Settings.haptics = false; game.Settings.motion = false;
             game.SaveSettings();
             yield return new WaitForSeconds(.6f); Capture(game, "home");
             int complete = 0;
-            for (int level = 0; level < game.campaign.levels.Length; level++)
+            for (int level = 0; level < requiredLevels; level++)
             {
                 game.StartLevel(level); FloatingRing selected = null; bool aboveTip = false; float stalled = 0f, reverseUntil = 0f, reverseDirection = 0f;
                 yield return new WaitForSeconds(.25f); Capture(game, "level-" + (level + 1).ToString("00"));
@@ -173,7 +177,8 @@ namespace PocketToys.WaterRingToss.Game
         {
             frames.Sort(); float sum = 0f; foreach (float frame in frames) sum += frame;
             var result = new Result { platform = Application.platform.ToString(), graphics = SystemInfo.graphicsDeviceName, version = Application.version,
-                passed = completed == 5 && error == null, completedLevels = completed, frames = frames.Count,
+                scope = "original-five-introduction", requiredLevels = requiredLevels, availableLevels = availableLevels,
+                passed = completed == requiredLevels && error == null, completedLevels = completed, frames = frames.Count,
                 averageFrameMilliseconds = frames.Count == 0 ? 0f : sum / frames.Count,
                 p95FrameMilliseconds = frames.Count == 0 ? 0f : frames[Mathf.Min(frames.Count - 1, Mathf.FloorToInt(frames.Count * .95f))], error = error };
             File.WriteAllText(Path.Combine(output, "report.json"), JsonUtility.ToJson(result, true));

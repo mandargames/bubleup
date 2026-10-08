@@ -1,5 +1,7 @@
 # Pocket Toys: ring identity and new level directions
 
+Update: the subsequent [next-level implementation](NEXT_LEVELS.md) now adds source prototypes for weights, mini collectors, ice, lava and fish. It supersedes this document's earlier “not implemented” status. The renders and 46-test result below remain evidence for the preceding repair revision only; the expansion has not been built or gameplay-tested.
+
 8 October 2026. Follow-up to the [research baseline](POCKET_TOYS_BASELINE.md) and the owner's phone feedback. This document separates the current repair from proposed mechanics. It does not claim that these ideas have been tested with players.
 
 ## What the player reported

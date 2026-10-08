@@ -1,3 +1,12 @@
+## 2026-10-08 - Unreleased eleven-stage expansion prototypes
+
+- Added consistent light/standard/heavy profiles and smaller agile rings, with colours, visible weight marks and explicit lift/settling/steering response. The original five layouts retain standard behaviour.
+- Authored six additional lessons: Feather and Pebble, Bubble Garden, First Frost, Lava Lift, Passing Company and Reef Rhythm. Added tray collection with a six-of-eight goal and a paged level menu.
+- Implemented the owner's chosen ice rule: finish before a 60-second freeze deadline or the attempt ends. Pause/background stops the timer; retry preserves earned progress. Added frost status and a dedicated failure screen.
+- Added alternating warned thermal lift, procedural ice/basalt backgrounds and fish crossings with visible entry cues, varied seeded routes and one gentle nudge per loose ring per pass. Locked rings remain protected.
+- Coalesced closely grouped landing sounds. Updated fresh-project content authoring and made the original-five audit's limited scope explicit.
+- Builds, Unity compilation, rendering and gameplay tests deferred at the owner's request. C# syntax parsing and source review only; previous passing checks do not validate this expansion. Docs/Research/NEXT_LEVELS.md records tuning, next concepts and pending verification.
+
 ## 2026-10-08 - Unreleased ring landing and shape repair
 
 - Reproduced a valid off-centre shelf landing that never scored. Replaced the narrow one-step tip-crossing test with recognition of the shaft inside the physical opening, retaining support, settling, height and capacity requirements.
