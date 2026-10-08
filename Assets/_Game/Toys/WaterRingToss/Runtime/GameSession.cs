@@ -9,7 +9,7 @@ using DeviceInput = UnityEngine.Input;
 
 namespace PocketToys.WaterRingToss.Game
 {
-    public enum GameScreen { Home, Playing, Paused, Levels, Settings, Complete, Collection }
+    public enum GameScreen { Home, Playing, Paused, Levels, Settings, Complete, Collection, Help, ConfirmRestart, Controls }
 
     public sealed class GameSession : MonoBehaviour
     {
@@ -36,6 +36,7 @@ namespace PocketToys.WaterRingToss.Game
         int[] occupied;
         float nextLeft, nextRight, completionRest;
         GameScreen settingsReturn = GameScreen.Home;
+        GameScreen helpReturn = GameScreen.Paused;
         bool hasAttempt;
         public static string SavePathOverride;
 
@@ -143,6 +144,9 @@ namespace PocketToys.WaterRingToss.Game
         public void Pause() { if (Playing) SetScreen(GameScreen.Paused); }
         public void Resume() { if (hasAttempt) SetScreen(GameScreen.Playing); }
         public void Restart() { StartLevel(LevelIndex); }
+        public void RequestRestart() { if (hasAttempt) SetScreen(GameScreen.ConfirmRestart); }
+        public void OpenHelp() { helpReturn = Playing ? GameScreen.Paused : Screen; SetScreen(GameScreen.Help); }
+        public void CloseHelp() { SetScreen(helpReturn); }
         public void OpenSettings() { settingsReturn = Playing ? GameScreen.Paused : Screen; SetScreen(GameScreen.Settings); }
         public void CloseSettings() { SaveSettings(); SetScreen(settingsReturn); }
         public void Calibrate()
@@ -178,14 +182,19 @@ namespace PocketToys.WaterRingToss.Game
                 Elapsed += Time.deltaTime;
                 if (DeviceInput.GetKeyDown(KeyCode.Q) || DeviceInput.GetKeyDown(KeyCode.Space)) Pump(true);
                 if (DeviceInput.GetKeyDown(KeyCode.E)) Pump(false);
-                if (DeviceInput.GetKeyDown(KeyCode.R)) Restart();
+                if (DeviceInput.GetKeyDown(KeyCode.R)) RequestRestart();
                 if (DeviceInput.GetKeyDown(KeyCode.C)) Calibrate();
                 completionRest = Caught == Rings.Count ? completionRest + Time.deltaTime : 0f;
                 if (completionRest >= .3f) CompleteLevel();
             }
             if (DeviceInput.GetKeyDown(KeyCode.Escape))
             {
-                if (Playing) Pause(); else if (Screen == GameScreen.Paused) Resume(); else if (Screen == GameScreen.Settings) CloseSettings(); else Home();
+                if (Playing) Pause();
+                else if (Screen == GameScreen.Paused || Screen == GameScreen.ConfirmRestart) Resume();
+                else if (Screen == GameScreen.Settings) CloseSettings();
+                else if (Screen == GameScreen.Controls) { SaveSettings(); SetScreen(GameScreen.Settings); }
+                else if (Screen == GameScreen.Help) CloseHelp();
+                else Home();
             }
         }
         void OnApplicationPause(bool paused) { if (paused && Ready) { Pause(); Progress.Save(); } }

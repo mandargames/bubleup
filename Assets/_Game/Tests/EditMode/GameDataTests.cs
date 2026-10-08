@@ -10,6 +10,18 @@ namespace PocketToys.Tests
 {
     public sealed class GameDataTests
     {
+        [Test]
+        public void HapticsPrioritizeSuccessAndNeverReplayMutedFeedback()
+        {
+            var gate = new HapticGate();
+            gate.Request(0); gate.Request(2); gate.Request(1);
+            Assert.IsTrue(gate.TryTake(0, out int kind)); Assert.That(kind, Is.EqualTo(2));
+            gate.Request(0); Assert.IsFalse(gate.TryTake(.01f, out _));
+            gate.Request(0); Assert.IsTrue(gate.TryTake(.2f, out kind));
+            gate.Request(1); Assert.IsTrue(gate.TryTake(.21f, out kind)); Assert.That(kind, Is.EqualTo(1));
+            gate.Request(2); Assert.IsTrue(gate.TryTake(.22f, out kind)); Assert.That(kind, Is.EqualTo(2));
+            gate.Request(2); gate.Clear(); Assert.IsFalse(gate.TryTake(2f, out _));
+        }
         string directory, path;
         [SetUp] public void Setup() { directory = Path.Combine(Path.GetTempPath(), "PocketToysTest-" + Guid.NewGuid()); Directory.CreateDirectory(directory); path = Path.Combine(directory, "save.json"); }
         [TearDown] public void Teardown() { Directory.Delete(directory, true); }

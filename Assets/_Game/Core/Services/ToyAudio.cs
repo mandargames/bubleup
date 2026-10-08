@@ -4,6 +4,21 @@ using UnityEngine;
 
 namespace PocketToys.Core.Services
 {
+    /// <summary>Coalesces a frame's feedback and lets a landing/win interrupt a weaker tap.</summary>
+    public sealed class HapticGate
+    {
+        int pending = -1, previous = -1;
+        float last = float.NegativeInfinity;
+        public void Request(int kind) { pending = Mathf.Max(pending, kind); }
+        public void Clear() { pending = previous = -1; last = float.NegativeInfinity; }
+        public bool TryTake(float now, out int kind)
+        {
+            kind = pending; pending = -1;
+            if (kind < 0 || (now - last < .12f && kind <= previous)) return false;
+            previous = kind; last = now; return true;
+        }
+    }
+
     /// <summary>Original, deterministic sound synthesis with separate music, effects and semantic haptics.</summary>
     public sealed class ToyAudio : MonoBehaviour
     {
@@ -12,7 +27,9 @@ namespace PocketToys.Core.Services
         AudioClip pump, tap, chime, success, soundtrack;
         bool soundOn = true, hapticsOn = true;
         int voice;
-        float lastContact, lastHaptic;
+        float lastContact;
+        int pumpVariation;
+        readonly HapticGate hapticGate = new HapticGate();
         #if UNITY_IOS && !UNITY_EDITOR
         [DllImport("__Internal")] static extern void PocketToysHaptic(int kind);
         #endif
@@ -31,6 +48,7 @@ namespace PocketToys.Core.Services
         public void Configure(bool sound, bool musicEnabled, bool haptics)
         {
             soundOn = sound; hapticsOn = haptics;
+            if (!haptics) hapticGate.Clear();
             if (!sound) foreach (var source in voices) source.Stop();
             if (musicEnabled && !music.isPlaying) music.Play();
             if (!musicEnabled) music.Stop();
@@ -38,23 +56,36 @@ namespace PocketToys.Core.Services
         void Play(AudioClip clip, float volume = .7f, float pitch = 1f, float pan = 0f)
         {
             if (!soundOn) return;
-            var source = voices[voice++ % voices.Length]; source.clip = clip;
+            var source = voices[2 + voice++ % (voices.Length - 2)]; source.clip = clip;
             source.volume = volume; source.pitch = pitch; source.panStereo = pan; source.Play();
         }
-        public void Pump(bool left) { Play(pump, .52f, .97f + (voice % 4) * .025f, left ? -.12f : .12f); Haptic(0); }
+        public void Pump(bool left)
+        {
+            // One voice per nozzle caps the combined level during rapid two-thumb play.
+            if (soundOn)
+            {
+                var source = voices[left ? 0 : 1]; source.clip = pump;
+                source.volume = .42f; source.pitch = .97f + (pumpVariation++ % 4) * .02f;
+                source.panStereo = left ? -.10f : .10f; source.Play();
+            }
+            Haptic(0);
+        }
         public void Contact()
         {
             if (Time.unscaledTime - lastContact < .12f) return;
             lastContact = Time.unscaledTime; Play(tap, .3f);
         }
-        public void Catch(int count) { Play(chime, .62f, 1f + count * .05f); Haptic(1); }
+        public void Catch(int count) { Play(chime, .48f, 1f + count * .035f); Haptic(1); }
         public void Click() { Play(tap, .3f, 1.4f); }
         public void Success() { Play(success, .56f); Haptic(2); }
 
         void Haptic(int kind)
         {
-            if (!hapticsOn || Time.unscaledTime - lastHaptic < .1f) return;
-            lastHaptic = Time.unscaledTime;
+            if (hapticsOn) hapticGate.Request(kind);
+        }
+        void LateUpdate()
+        {
+            if (!hapticsOn || !hapticGate.TryTake(Time.unscaledTime, out int kind)) return;
             #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
@@ -85,17 +116,19 @@ namespace PocketToys.Core.Services
         static AudioClip GentleBubbles()
         {
             const int rate = 22050;
-            var data = new float[(int)(rate * .48f)];
-            float[] starts = { .008f, .067f, .146f, .248f };
-            float[] frequencies = { 440f, 620f, 510f, 790f };
+            // Finish before the 180 ms pump cooldown, including pitch variation,
+            // so a rapid press never hard-cuts the previous waveform.
+            var data = new float[(int)(rate * .17f)];
+            float[] starts = { .008f, .058f };
+            float[] frequencies = { 390f, 540f };
             for (int bubble = 0; bubble < starts.Length; bubble++)
             for (int i = (int)(starts[bubble] * rate); i < data.Length; i++)
             {
                 float t = (float)i / rate - starts[bubble];
                 if (t < 0f) continue;
-                float attack = 1f - Mathf.Exp(-t * 260f);
-                float envelope = attack * Mathf.Exp(-t * (25f + bubble * 3f));
-                float phase = 2f * Mathf.PI * frequencies[bubble] * (t + .85f * t * t);
+                float attack = 1f - Mathf.Exp(-t * 180f);
+                float envelope = attack * Mathf.Exp(-t * (35f + bubble * 5f));
+                float phase = 2f * Mathf.PI * frequencies[bubble] * (t + .7f * t * t);
                 // Rounded resonant drops: no broadband hiss or percussive click.
                 data[i] += Mathf.Sin(phase) * envelope * (.24f - bubble * .025f);
             }
@@ -144,6 +177,7 @@ namespace PocketToys.Core.Services
             }
             var clip = AudioClip.Create("Pocket lullaby - original", data.Length, 1, rate, false); clip.SetData(data, 0); return clip;
         }
+        void OnDisable() { hapticGate.Clear(); }
         void OnDestroy() { Destroy(pump); Destroy(tap); Destroy(chime); Destroy(success); Destroy(soundtrack); }
     }
 }

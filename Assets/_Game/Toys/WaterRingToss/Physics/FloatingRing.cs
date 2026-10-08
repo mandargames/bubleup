@@ -5,7 +5,10 @@ namespace PocketToys.WaterRingToss.Game
 {
     public sealed class FloatingRing : MonoBehaviour
     {
-        public const float Radius = .305f, Tube = .086f, Pitch = 58f, StackSpacing = .215f;
+        public const float Radius = .305f, Tube = .086f, Pitch = 58f;
+        // Nested rings can sit lower, but their full projected height is possible
+        // when a neighboring ring shifts the contact points in a stack.
+        public static readonly float StackSpacing = 2f * (Radius * Mathf.Cos(Pitch * Mathf.Deg2Rad) + Tube);
         const float PumpDuration = .22f;
         public Rigidbody Body { get; private set; }
         public Transform Visual;

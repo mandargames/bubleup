@@ -1,3 +1,13 @@
+## 2026-10-08 - Research baseline implementation (0.2.4, build 5)
+
+- Replaced the stretched tall-phone tank with a bounded, proportionally framed arena. Narrower casing keeps rings prominent; the header and touch targets clear the simulated safe areas.
+- Added contextual first-level guidance, revisitable help, finger-sized targets, touch release/disable cleanup, and restart confirmation. Separated controls/calibration from comfort settings.
+- Made completion the primary reward. Time, pump counts and stars remain available in optional results; existing progress, bests, cosmetics and saved preferences remain compatible.
+- Softened pump audio with short low bubble resonances and capped simultaneous pump voices. Haptic events coalesce by importance; softer native iPhone impacts replace medium landing impacts.
+- Fixed a scoring deadlock when a physically supported ring sat higher in an offset stack than the old acceptance range allowed. Support, settling, threading and capacity checks remain required.
+- Validation: 17 EditMode and 26 PlayMode checks passed, including all five levels through public controls, offset stacks, release/pause/help/restart, mute, waveform bounds and three phone proportions. Reviewed rendered menus and gameplay. Physical iPhone feel remains unverified for this candidate.
+- Markdown research and implementation records are in Docs/Research; build and device status are tracked in Docs/Research/IMPLEMENTATION.md.
+
 ## 2026-10-08 - Full-screen phone gameplay and gentle bubbles (0.2.3, build 4)
 
 - Replaced the large gameplay branding/header and bottom menu row with a compact level title and top-right settings control. The control pauses play and exposes restart, levels, settings and home. Its touch area is larger than its visible icon.
@@ -6,7 +16,7 @@
 - Validation: 16 EditMode and 23 PlayMode checks passed, including all five levels, corner containment, pause controls and bubble waveform limits. Reviewed 360x800, 390x844 and 375x667 previews with simulated safe-area margins. Both focused preview/layout checks passed after correcting screenshot aspect restoration.
 - iPhone compilation and physical-device validation are recorded separately with the release artifact.
 
-## 2026-10-08 — iPhone build 0.2.1 (2)
+## 2026-10-08 â€” iPhone build 0.2.1 (2)
 
 - Prepared the current local game changes for a new physical-iPhone build: Coral Club artwork, larger tank, compact peg supports, hollow ring collisions, gentler controls, and rings that lock after landing.
 - Bumped the app version to 0.2.1 and iPhone build number to 2, retaining `com.pockettoys.water` for updating the existing AltStore installation.

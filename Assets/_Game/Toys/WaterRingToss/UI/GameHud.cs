@@ -12,10 +12,10 @@ namespace PocketToys.WaterRingToss.Game
         public RectTransform Root { get; private set; }
         GameSession game;
         RectTransform safeArea, screenRoot, leftPump, rightPump;
-        Text progress, timer, pumpCount, sensitivityLabel, controlsHint, homeSubtitle;
+        Text progress, sensitivityLabel, controlsHint, homeSubtitle, lesson;
         Slider lean;
         Font font, displayFont;
-        RectTransform progressPill, timerPill;
+        bool showResults;
         Sprite rounded, circle, starSprite;
         Texture2D roundedTexture, circleTexture, starTexture;
         CanvasGroup fade;
@@ -37,7 +37,7 @@ namespace PocketToys.WaterRingToss.Game
             Canvas = canvasObject.GetComponent<Canvas>(); Canvas.renderMode = RenderMode.ScreenSpaceCamera;
             Canvas.worldCamera = game.Presentation.Camera; Canvas.planeDistance = 1f;
             var scaler = canvasObject.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(720f, 1280f); scaler.matchWidthOrHeight = .5f;
+            scaler.referenceResolution = new Vector2(720f, 1280f); scaler.matchWidthOrHeight = 0f;
             Root = canvasObject.GetComponent<RectTransform>();
             safeArea = Stretch("Safe area", Root);
             if (FindFirstObjectByType<EventSystem>() == null)
@@ -112,6 +112,7 @@ namespace PocketToys.WaterRingToss.Game
             => Text(Rect(value, x, y, width, height), value, size, color, bold ? FontStyle.Bold : FontStyle.Normal);
         Button Button(string label, float x, float y, float width, float height, Color color, Action action, bool enabled = true)
         {
+            height = Mathf.Max(88f, height);
             var shadow = Rect(label + " shadow", x, y, width, height);
             shadow.anchoredPosition = new Vector2(0, -5);
             Image(shadow, new Color(.01f, .045f, .065f, .36f)).raycastTarget = false;
@@ -150,11 +151,12 @@ namespace PocketToys.WaterRingToss.Game
 
         void Rebuild()
         {
+            bool sameScreen = screenRoot != null && builtScreen == game.Screen;
             if (screenRoot != null) { screenRoot.gameObject.SetActive(false); Destroy(screenRoot.gameObject); }
             screenRoot = Stretch("Screen - " + game.Screen, safeArea); fade = screenRoot.gameObject.AddComponent<CanvasGroup>();
-            screenAge = 0f; builtScreen = game.Screen; progress = timer = pumpCount = null; leftPump = rightPump = null; lean = null;
-            controlsHint = homeSubtitle = null;
-            progressPill = timerPill = null;
+            if (builtScreen != game.Screen) showResults = false;
+            screenAge = sameScreen ? 10f : 0f; builtScreen = game.Screen; progress = null; leftPump = rightPump = null; lean = null;
+            controlsHint = homeSubtitle = lesson = null;
             switch (game.Screen)
             {
                 case GameScreen.Home: Home(); break;
@@ -164,6 +166,9 @@ namespace PocketToys.WaterRingToss.Game
                 case GameScreen.Settings: Settings(); break;
                 case GameScreen.Complete: Complete(); break;
                 case GameScreen.Collection: Collection(); break;
+                case GameScreen.Help: Help(); break;
+                case GameScreen.ConfirmRestart: ConfirmRestart(); break;
+                case GameScreen.Controls: Controls(); break;
             }
             if (!string.IsNullOrEmpty(game.Progress.LastError)) Label("Save needs attention - " + game.Progress.LastError, .5f, .013f, 12, gold, 650f);
         }
@@ -174,39 +179,40 @@ namespace PocketToys.WaterRingToss.Game
             Label("A little ocean.\nA lot of joy.", .5f, .824f, 54, cream, 650f, 140f, true);
             Label("Your pocket-sized escape.", .5f, .768f, 17, muted, 630f, 24f);
             homeSubtitle = Label("C O R A L   C L U B", .5f, .70f, 14, ink);
-            Card(.5f, .162f, 620f, 225f);
-            int count = game.Progress.Data.TotalStars;
-            Label(count + " / " + game.campaign.levels.Length * 3 + " STARS  ·  FIVE LITTLE ADVENTURES", .5f, .228f, 12, gold);
-            Button("LET'S PLAY  >", .5f, .178f, 554f, 72f, gold, () => game.StartLevel(game.LevelIndex));
-            Button("ADVENTURES", .3f, .111f, 256f, 49f, Hex("#286675"), () => game.SetScreen(GameScreen.Levels));
-            Button("TOY SHELLS", .7f, .111f, 256f, 49f, Hex("#286675"), () => game.SetScreen(GameScreen.Collection));
-            Button("SETTINGS", .5f, .034f, 160f, 35f, panel, game.OpenSettings);
+            Card(.5f, .177f, 620f, 300f);
+            Label("FIVE LITTLE ADVENTURES  ·  AT YOUR OWN PACE", .5f, .28f, 14, gold);
+            Button("LET'S PLAY  >", .5f, .215f, 554f, 88f, gold, () => game.StartLevel(game.LevelIndex));
+            Button("ADVENTURES", .3f, .13f, 256f, 88f, Hex("#286675"), () => game.SetScreen(GameScreen.Levels));
+            Button("TOY SHELLS", .7f, .13f, 256f, 88f, Hex("#286675"), () => game.SetScreen(GameScreen.Collection));
+            Button("SETTINGS", .5f, .042f, 220f, 88f, panel, game.OpenSettings);
         }
 
         void Play()
         {
-            var title = Label((game.LevelIndex + 1).ToString("00") + "  /  " + game.Level.title, 0f, 1f, 20, cream, 450f, 36f, true);
-            title.color = ink;
+            var title = Label((game.LevelIndex + 1).ToString("00") + "  /  " + game.Level.title, 0f, 1f, 30, cream, 530f, 40f, true);
             title.alignment = TextAnchor.MiddleLeft; title.rectTransform.pivot = new Vector2(0, .5f);
-            title.rectTransform.anchoredPosition = new Vector2(24, -36);
+            title.rectTransform.anchoredPosition = new Vector2(24, -30);
             SettingsButton();
-            progressPill = Rect("Ring counter capsule", .5f, .5f, 150, 34); Image(progressPill, new Color(.025f, .20f, .25f, .85f)).raycastTarget = false;
-            timerPill = Rect("Time capsule", .5f, .5f, 92, 34); Image(timerPill, new Color(.025f, .20f, .25f, .85f)).raycastTarget = false;
-            progress = Label("", .32f, .735f, 14, cream, 150f);
-            timer = Label("", .7f, .735f, 14, cream, 92f);
+            progress = Label("", 0, 1, 24, gold, 520f, 32f);
+            progress.alignment = TextAnchor.MiddleLeft; progress.rectTransform.pivot = new Vector2(0, .5f);
+            progress.rectTransform.anchoredPosition = new Vector2(24, -67);
+            lesson = Label("", 0, 1, 24, muted, 635f, 54f);
+            lesson.alignment = TextAnchor.MiddleLeft; lesson.rectTransform.pivot = new Vector2(0, .5f);
+            lesson.rectTransform.anchoredPosition = new Vector2(24, -117);
             leftPump = PumpButton(true); rightPump = PumpButton(false);
-            pumpCount = Label("", .5f, .296f, 12, ink, 150f);
-            controlsHint = Label(game.Sensor.UseSensor ? "TILT TO\nSTEER" : "DRAG TO STEER", .5f, .09f, 11, ink, 140f, 42f);
+            controlsHint = Label(game.Sensor.UseSensor ? "TILT TO\nSTEER" : "PUMP TO\nLIFT", .5f, .09f, 24, ink, 152f, 64f, true);
             if (!game.Sensor.UseSensor)
             {
                 lean = Slider("Lean", .5f, .05f, 430f, -1f, 1f, 0f, value => game.Sensor.SetVirtualTilt(value));
                 lean.gameObject.AddComponent<CenterOnRelease>();
+                var caption = Text(Rect("Steering label", .5f, .5f, 400, 30, lean.transform), "SLIDE TO STEER", 22, cream);
+                caption.rectTransform.anchoredPosition = new Vector2(0, -38);
             }
         }
         void SettingsButton()
         {
-            var rect = Rect("Game settings", 1f, 1f, 80, 80);
-            rect.anchoredPosition = new Vector2(-48, -42);
+            var rect = Rect("Game settings", 1f, 1f, 96, 96);
+            rect.anchoredPosition = new Vector2(-54, -54);
             Image(rect, new Color(1, 1, 1, .001f), false);
             var image = Image(Rect("Settings surface", .5f, .5f, 64, 64, rect), panel);
             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
@@ -226,17 +232,18 @@ namespace PocketToys.WaterRingToss.Game
             var rect = Rect(left ? "Left pump" : "Right pump", .5f, .5f, 114f, 114f);
             var image = Image(rect, new Color(1f, 1f, 1f, .001f), false); image.sprite = circle;
             rect.gameObject.AddComponent<PumpPress>().Action = () => game.Pump(left);
-            Text(Stretch("PUMP", rect), "PUSH", 17, ink, FontStyle.Bold);
+            Text(Stretch("PUMP", rect), "PUSH", 22, ink, FontStyle.Bold);
             return rect;
         }
         Slider Slider(string name, float x, float y, float width, float min, float max, float value, Action<float> action)
         {
-            var rect = Rect(name, x, y, width, 28f); Image(rect, Hex("#286170"));
+            var rect = Rect(name, x, y, width, 88f); Image(rect, new Color(1, 1, 1, .001f), false);
+            var track = Rect("Track", .5f, .5f, width, 18f, rect); Image(track, Hex("#397B87")).raycastTarget = false;
             var slider = rect.gameObject.AddComponent<Slider>(); slider.minValue = min; slider.maxValue = max; slider.value = value;
-            var area = Stretch("Handle area", rect); area.offsetMin = new Vector2(18f, 0f); area.offsetMax = new Vector2(-18f, 0f);
-            var handle = Rect("Handle", .5f, .5f, 28f, 28f, area); var image = Image(handle, cream, false); image.sprite = circle;
+            var area = Stretch("Handle area", rect); area.offsetMin = new Vector2(22f, 24f); area.offsetMax = new Vector2(-22f, -24f);
+            var handle = Rect("Handle", .5f, .5f, 40f, 40f, area); var image = Image(handle, cream, false); image.sprite = circle;
             slider.handleRect = handle; slider.targetGraphic = image;
-            handle.sizeDelta = new Vector2(28f, 0f);
+            handle.sizeDelta = new Vector2(40f, 0f);
             slider.onValueChanged.AddListener(v => action(v));
             var nav = slider.navigation; nav.mode = Navigation.Mode.None; slider.navigation = nav;
             return slider;
@@ -244,21 +251,41 @@ namespace PocketToys.WaterRingToss.Game
 
         void Pause()
         {
-            Overlay(.75f); Brand("A LITTLE BREATHER"); Card(.5f, .5f, 610f, 660f);
-            Label("Take your time.", .5f, .66f, 34, cream, 540f, 60f, true);
-            Label("Your rings are right where you left them.", .5f, .607f, 17, muted);
-            Button("KEEP PLAYING", .5f, .55f, 510f, 74f, gold, game.Resume);
-            Button("TRY AGAIN", .5f, .477f, 510f, 62f, Hex("#2B4E59"), game.Restart);
-            Button("SETTINGS", .5f, .407f, 510f, 62f, Hex("#2B4E59"), game.OpenSettings);
-            Button("LEVELS", .5f, .337f, 510f, 62f, Hex("#2B4E59"), () => game.SetScreen(GameScreen.Levels));
-            Button("BACK TO HOME", .5f, .27f, 400f, 40f, panel, game.Home);
+            Overlay(.9f); Brand("A LITTLE BREATHER");
+            Label("Take your time.", .5f, .82f, 38, cream, 540f, 60f, true);
+            Label("Your rings are right where you left them.", .5f, .765f, 20, muted);
+            Button("KEEP PLAYING", .5f, .66f, 550f, 96f, gold, game.Resume);
+            Button("HOW TO PLAY", .5f, .555f, 550f, 88f, panel, game.OpenHelp);
+            Button("SETTINGS", .5f, .45f, 550f, 88f, panel, game.OpenSettings);
+            Button("RESTART LEVEL", .5f, .345f, 550f, 88f, panel, game.RequestRestart);
+            Button("LEVELS", .5f, .24f, 550f, 88f, panel, () => game.SetScreen(GameScreen.Levels));
+            Button("BACK TO HOME", .5f, .135f, 550f, 88f, panel, game.Home);
+        }
+
+        void Help()
+        {
+            Overlay(.96f); Brand("HOW TO PLAY");
+            Label("Lift. Steer. Let it settle.", .5f, .81f, 36, cream, 650, 70, true);
+            Label("1   Tap a pump to lift nearby rings.\nLeft pump lifts on the left; right on the right.", .5f, .66f, 23, cream, 600, 110);
+            Label(game.Sensor.UseSensor ? "2   Gently tilt to steer left or right.\nFind a comfortable position in Settings,\nthen tap Calibrate." : "2   Slide the steering control left or right.\nRelease to stop steering. You can pump,\nthen steer with the same finger.", .5f, .47f, 23, cream, 600, 150);
+            Label("3   Let a ring fall over a peg's tip.\nIt counts when it rests on the shelf.\nLand every ring to finish. There is no time limit.", .5f, .28f, 23, cream, 610, 140);
+            Button("GOT IT", .5f, .1f, 430, 96, gold, game.CloseHelp);
+        }
+
+        void ConfirmRestart()
+        {
+            Overlay(.95f); Brand("RESTART LEVEL");
+            Label("Start this level again?", .5f, .64f, 36, cream, 620, 80, true);
+            Label("This attempt will reset.\nYour completed levels and earned stars stay saved.", .5f, .53f, 23, muted, 620, 90);
+            Button("KEEP THIS ATTEMPT", .5f, .38f, 550, 96, gold, game.Resume);
+            Button("RESTART", .5f, .26f, 550, 88, panel, game.Restart);
         }
 
         void Levels()
         {
             Overlay(.88f); Brand("YOUR LITTLE ADVENTURES");
             Label("Find your flow.", .5f, .855f, 36, cream, 630f, 55f, true);
-            Label(game.Progress.Data.TotalStars + " of " + game.campaign.levels.Length * 3 + " stars  /  finish a level to open the next", .5f, .807f, 15, muted);
+            Label("Land every ring to open the next adventure.", .5f, .807f, 20, muted);
             for (int i = 0; i < game.campaign.levels.Length; i++)
             {
                 int index = i; var level = game.campaign.levels[i]; float y = .714f - i * .122f;
@@ -277,7 +304,7 @@ namespace PocketToys.WaterRingToss.Game
                 else if (unlocked)
                 {
                     var goal = Rect("Star goal", .48f, .15f, 380f, 22f, button.transform);
-                    Text(goal, "3 STARS  /  " + level.goldSeconds.ToString("0") + "s + " + level.goldPumps + " pumps or fewer", 11, gold, FontStyle.Normal, TextAnchor.MiddleLeft);
+                    Text(goal, "TAKE YOUR TIME  /  NO TIME LIMIT", 13, gold, FontStyle.Normal, TextAnchor.MiddleLeft);
                 }
                 Label(unlocked ? ">" : "LOCKED", .866f, y, unlocked ? 28 : 10, muted, 70f);
                 Stars(.78f, y + .019f, record?.stars ?? 0, 18f, 22f);
@@ -287,42 +314,55 @@ namespace PocketToys.WaterRingToss.Game
 
         void Toggle(string title, string description, float y, Func<bool> value, Action<bool> set, bool interactable = true)
         {
-            var row = Rect(title, .5f, y, 618f, 79f); Image(row, panel);
+            var row = Rect(title, .5f, y, 618f, 100f); Image(row, panel);
             Text(Rect("Title", .4f, .67f, 420f, 30f, row), title, 20, cream, FontStyle.Bold, TextAnchor.MiddleLeft);
-            Text(Rect("Description", .4f, .28f, 420f, 30f, row), description, 13, muted, FontStyle.Normal, TextAnchor.MiddleLeft);
-            Button(value() ? "ON" : "OFF", .85f, y, 90f, 43f, value() ? gold : Hex("#375260"), () => { set(!value()); game.SaveSettings(); Rebuild(); }, interactable);
+            Text(Rect("Description", .4f, .28f, 420f, 42f, row), description, 17, muted, FontStyle.Normal, TextAnchor.MiddleLeft);
+            Button(value() ? "ON" : "OFF", .85f, y, 90f, 88f, value() ? gold : Hex("#375260"), () => { set(!value()); game.SaveSettings(); Rebuild(); }, interactable);
         }
         void Settings()
         {
             Overlay(.96f); Brand("MAKE YOURSELF COMFORTABLE");
             Label("Your way to play.", .5f, .852f, 34, cream, 630f, 55f, true);
-            Toggle("Sound effects", "Water, clicks and little celebrations", .768f, () => game.Settings.sound, v => game.Settings.sound = v);
-            Toggle("Music", "A quiet original melody", .688f, () => game.Settings.music, v => game.Settings.music = v);
-            Toggle("Haptics", "Tactile feedback on supported phones", .608f, () => game.Settings.haptics, v => game.Settings.haptics = v);
-            Toggle("Phone tilt", game.Sensor.SensorAvailable ? "Turn off to use the touch slider" : "No motion sensor detected; touch stays available", .528f, () => game.Settings.motion && game.Sensor.SensorAvailable, v => game.Settings.motion = v, game.Sensor.SensorAvailable);
-            Toggle("Reduced motion", "Gentler visuals and fewer particles", .448f, () => game.Settings.reduceMotion, v => game.Settings.reduceMotion = v);
-            sensitivityLabel = Label("STEERING SENSITIVITY  " + game.Settings.sensitivity.ToString("0.0"), .5f, .38f, 13, muted);
-            Slider("Sensitivity", .5f, .343f, 510f, .8f, 4.5f, game.Settings.sensitivity, v => { game.Settings.sensitivity = v; game.Sensor.sensitivity = v; sensitivityLabel.text = "STEERING SENSITIVITY  " + v.ToString("0.0"); });
-            Button("CALIBRATE NEUTRAL POSITION", .5f, .284f, 560f, 51f, panel, game.Calibrate);
-            Label(game.Notice ?? "Hold the phone comfortably, then calibrate.", .5f, .241f, 12, muted);
-            Toggle("Local diagnostics", "Optional playtest events saved only on this device", .184f, () => game.Settings.localDiagnostics, v => game.Settings.localDiagnostics = v);
-            Button("DONE", .5f, .083f, 310f, 58f, gold, game.CloseSettings);
+            Toggle("Sound effects", "Bubbles, landings and soft clicks", .75f, () => game.Settings.sound, v => game.Settings.sound = v);
+            Toggle("Music", "A quiet original melody", .64f, () => game.Settings.music, v => game.Settings.music = v);
+            Toggle("Haptics", "Gentle taps on supported phones", .53f, () => game.Settings.haptics, v => game.Settings.haptics = v);
+            Toggle("Reduced motion", "Fewer decorative bubbles and effects", .42f, () => game.Settings.reduceMotion, v => game.Settings.reduceMotion = v);
+            Button("CONTROLS & CALIBRATION", .5f, .30f, 618, 88, panel, () => game.SetScreen(GameScreen.Controls));
+            Toggle("Local diagnostics", "Optional playtest log; stays on this device", .18f, () => game.Settings.localDiagnostics, v => game.Settings.localDiagnostics = v);
+            Button("DONE", .5f, .07f, 310f, 88f, gold, game.CloseSettings);
+        }
+
+        void Controls()
+        {
+            Overlay(.96f); Brand("CONTROLS");
+            Label("Find your balance.", .5f, .84f, 36, cream, 630, 60, true);
+            Toggle("Phone tilt", game.Sensor.SensorAvailable ? "Off: use the on-screen steering slider" : "No motion sensor; touch steering is active", .72f, () => game.Settings.motion && game.Sensor.SensorAvailable, v => game.Settings.motion = v, game.Sensor.SensorAvailable);
+            Label(game.Sensor.UseSensor ? "Tilt gently to steer. Hold your phone\ncomfortably, then calibrate to center it." : "Slide to steer, release to center.\nYou can play with the phone resting on a table.", .5f, .57f, 23, cream, 620, 100);
+            sensitivityLabel = Label("STEERING SENSITIVITY  " + game.Settings.sensitivity.ToString("0.0"), .5f, .45f, 20, muted);
+            Slider("Sensitivity", .5f, .38f, 510, .8f, 4.5f, game.Settings.sensitivity, v => { game.Settings.sensitivity = v; game.Sensor.sensitivity = v; sensitivityLabel.text = "STEERING SENSITIVITY  " + v.ToString("0.0"); });
+            Button("CALIBRATE NEUTRAL POSITION", .5f, .25f, 600, 88, panel, game.Calibrate, game.Sensor.UseSensor);
+            Label(game.Notice ?? (game.Sensor.UseSensor ? "Calibration changes steering, not your progress." : "Touch steering needs no calibration."), .5f, .16f, 18, muted);
+            Button("DONE", .5f, .07f, 310, 88, gold, () => { game.SaveSettings(); game.SetScreen(GameScreen.Settings); });
         }
 
         void Complete()
         {
-            Overlay(.79f); Brand("A LITTLE MOMENT OF JOY"); Card(.5f, .51f, 624f, 686f);
-            Stars(.5f, .728f, game.EarnedStars, 67f, 92f);
-            Label(game.EarnedStars == 3 ? "Beautifully done." : "Every ring, a little win.", .5f, .644f, 33, cream, 590f, 64f, true);
-            Label(game.Level.title + " complete", .5f, .596f, 18, muted);
-            Label(game.Elapsed.ToString("0.0") + "s    /    " + game.Pumps + " pumps", .5f, .535f, 24, gold, 550f, 50f, true);
-            Label("3 stars: " + game.Level.goldSeconds.ToString("0") + "s or less + " + game.Level.goldPumps + " pumps or fewer", .5f, .486f, 14, muted);
-            Label("2 stars: finish within " + game.Level.silverSeconds.ToString("0") + "s.  Every finish earns a star.", .5f, .458f, 13, muted);
+            Overlay(.9f); Brand("A LITTLE MOMENT OF JOY");
+            Label("Every ring. Nicely done.", .5f, .79f, 38, cream, 640, 70, true);
+            Label(game.Level.title + " complete", .5f, .725f, 23, muted);
+            if (showResults)
+            {
+                Stars(.5f, .635f, game.EarnedStars, 44, 65);
+                Label(game.Elapsed.ToString("0.0") + "s   /   " + game.Pumps + (game.Pumps == 1 ? " pump" : " pumps"), .5f, .57f, 24, gold);
+                Label("3 stars: within " + game.Level.goldSeconds.ToString("0") + "s and " + game.Level.goldPumps + " pumps\n2 stars: within " + game.Level.silverSeconds.ToString("0") + "s. Every finish earns a star.", .5f, .505f, 19, muted, 620, 70);
+            }
+            else Label("All rings landed.\nTake a breath, or try the next little challenge.", .5f, .59f, 24, cream, 620, 120);
+            Button(showResults ? "HIDE RESULTS" : "VIEW RESULTS & STARS", .5f, .41f, 550, 88, panel, () => { showResults = !showResults; Rebuild(); });
             bool last = game.LevelIndex == game.campaign.levels.Length - 1;
-            Button(last ? "YOUR ADVENTURE COLLECTION" : "NEXT LITTLE ADVENTURE", .5f, .379f, 550f, 73f, gold, () => { if (last) game.SetScreen(GameScreen.Levels); else game.StartLevel(game.LevelIndex + 1); });
-            Button("PLAY AGAIN", .31f, .297f, 255f, 54f, Hex("#2B4E59"), game.Restart);
-            Button("HOME", .69f, .297f, 255f, 54f, Hex("#2B4E59"), game.Home);
-            Label(!string.IsNullOrEmpty(game.Progress.LastError) ? "Save unavailable. See the message below." : last ? "All five adventures explored. Revisit them to earn every star." : "Progress saved on this device.", .5f, .21f, 14, muted);
+            Button(last ? "YOUR ADVENTURES" : "NEXT ADVENTURE", .5f, .29f, 550f, 96f, gold, () => { if (last) game.SetScreen(GameScreen.Levels); else game.StartLevel(game.LevelIndex + 1); });
+            Button("PLAY AGAIN", .31f, .18f, 255f, 88f, panel, game.Restart);
+            Button("HOME", .69f, .18f, 255f, 88f, panel, game.Home);
+            Label(!string.IsNullOrEmpty(game.Progress.LastError) ? "Save unavailable. See the message below." : "Progress saved on this device.", .5f, .08f, 18, muted);
         }
 
         void Collection()
@@ -368,24 +408,21 @@ namespace PocketToys.WaterRingToss.Game
             if (homeSubtitle != null) PlaceAt(homeSubtitle.rectTransform, new Vector3(0f, 5.25f, -1f));
             if (game.Playing)
             {
-                progress.text = "RINGS  " + game.Caught + " / " + game.Rings.Count;
-                timer.text = game.Elapsed.ToString("0.0") + "s";
-                pumpCount.text = game.Pumps + " PUMPS";
+                progress.text = game.Caught + " / " + game.Rings.Count + " RINGS LANDED";
+                lesson.text = !game.Progress.Data.tutorialSeen && game.LevelIndex == 0
+                    ? game.Pumps == 0 ? "Tap a pump to lift the ring. No need to hurry."
+                    : game.Sensor.UseSensor ? "Tilt to guide it above the peg, then let it fall." : "Slide to guide it above the peg, then let it fall."
+                    : game.Level.lesson;
                 PlacePump(leftPump, game.Presentation.LeftButton); PlacePump(rightPump, game.Presentation.RightButton);
-                PlaceAt(progress.rectTransform, new Vector3(-2.05f, game.Presentation.PlayfieldTop - .48f, -1f));
-                PlaceAt(timer.rectTransform, new Vector3(2.15f, game.Presentation.PlayfieldTop - .48f, -1f));
-                PlaceAt(progressPill, new Vector3(-2.05f, game.Presentation.PlayfieldTop - .48f, -1f));
-                PlaceAt(timerPill, new Vector3(2.15f, game.Presentation.PlayfieldTop - .48f, -1f));
-                PlaceAt(pumpCount.rectTransform, new Vector3(0f, -3.17f, -1f));
-                if (lean != null) PlaceAt(lean.GetComponent<RectTransform>(), new Vector3(0f, -4.95f, -1f));
-                PlaceAt(controlsHint.rectTransform, new Vector3(0f, -4.05f, -1f));
+                if (lean != null) PlaceAt(lean.GetComponent<RectTransform>(), new Vector3(0f, -5.18f, -1f));
+                PlaceAt(controlsHint.rectTransform, new Vector3(0f, -3.7f, -1f));
             }
         }
         void PlacePump(RectTransform button, Transform world)
         {
             PlaceAt(button, world.position);
             float diameter = 1.32f * CameraPixelsPerWorldUnit() / Canvas.scaleFactor;
-            button.sizeDelta = Vector2.one * Mathf.Max(72f, diameter);
+            button.sizeDelta = Vector2.one * Mathf.Max(96f, diameter);
         }
         float CameraPixelsPerWorldUnit() => game.Presentation.Camera.pixelHeight / (game.Presentation.Camera.orthographicSize * 2f);
         void PlaceAt(RectTransform element, Vector3 position)

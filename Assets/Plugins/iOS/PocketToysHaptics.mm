@@ -5,17 +5,22 @@ extern "C" void PocketToysHaptic(int kind)
     dispatch_async(dispatch_get_main_queue(), ^{
         if (@available(iOS 10.0, *)) {
             if (kind == 2) {
-                UINotificationFeedbackGenerator *feedback = [[UINotificationFeedbackGenerator alloc] init];
+                static UINotificationFeedbackGenerator *feedback;
+                if (!feedback) feedback = [[UINotificationFeedbackGenerator alloc] init];
                 [feedback notificationOccurred:UINotificationFeedbackTypeSuccess];
-                #if !__has_feature(objc_arc)
-                [feedback release];
-                #endif
+                [feedback prepare];
             } else {
-                UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:(kind == 1 ? UIImpactFeedbackStyleMedium : UIImpactFeedbackStyleLight)];
-                [feedback impactOccurred];
-                #if !__has_feature(objc_arc)
-                [feedback release];
-                #endif
+                static UIImpactFeedbackGenerator *pump;
+                static UIImpactFeedbackGenerator *landing;
+                if (!landing) landing = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+                if (!pump) {
+                    if (@available(iOS 13.0, *)) pump = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleSoft];
+                    else pump = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+                }
+                UIImpactFeedbackGenerator *feedback = kind == 1 ? landing : pump;
+                if (@available(iOS 13.0, *)) [feedback impactOccurredWithIntensity:(kind == 1 ? 0.6 : 0.35)];
+                else [feedback impactOccurred];
+                [feedback prepare];
             }
         }
     });

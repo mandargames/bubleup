@@ -5,14 +5,22 @@ using UnityEngine.UI;
 
 namespace PocketToys.WaterRingToss.Game
 {
-    public sealed class PumpPress : MonoBehaviour, IPointerDownHandler
+    public sealed class PumpPress : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
         public Action Action;
-        public void OnPointerDown(PointerEventData e) { if (e.button == PointerEventData.InputButton.Left) Action?.Invoke(); }
+        int? pointer;
+        public void OnPointerDown(PointerEventData e)
+        {
+            if (!isActiveAndEnabled || pointer.HasValue || e.button != PointerEventData.InputButton.Left) return;
+            pointer = e.pointerId; Action?.Invoke();
+        }
+        public void OnPointerUp(PointerEventData e) { if (pointer == e.pointerId) pointer = null; }
+        void OnDisable() { pointer = null; }
     }
     public sealed class CenterOnRelease : MonoBehaviour, IPointerUpHandler
     {
         public void OnPointerUp(PointerEventData e) { GetComponent<Slider>().value = 0f; }
+        void OnDisable() { GetComponent<Slider>().value = 0f; }
     }
     public sealed class StarGraphic : MaskableGraphic
     {

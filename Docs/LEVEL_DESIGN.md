@@ -14,7 +14,11 @@ Every completion earns one star. There is no countdown failure or energy system.
 
 Pegs and their compact shelves are solid. The shelves are narrower than a ring to leave generous upward routes beside each peg. Lift beside a shelf, steer the opening over the peg tip, then stop pumping to let the ring fall and settle. A ring crossing the tip has not scored yet; it must physically rest on the shelf or stack. Once locked, its solid colliders support subsequent rings, and it follows the peg if it moves.
 
-The chamber spans 6.8 units horizontally and 7.2 vertically, with a wider camera view and unchanged ring size. Vertical jets at x = ±2.15 cover the outer lanes; pumps do not add lateral force. Tilt or touch/keyboard steering determines horizontal travel. Peg layouts retain their authored positions, leaving more room around them.
+The chamber spans 5.6 units horizontally and 7.2 vertically. This bounded arena retains its proportions on short and tall phones instead of extending its ceiling to fill the screen. Ring and peg sizes remain unchanged; vertical jets at x = ±1.95 cover the outer lanes. Pumps do not add lateral force. Tilt or touch/keyboard steering determines horizontal travel. Peg layouts retain their authored positions.
+
+Gameplay shows the goal and landed-ring count. Time and pump records continue to be measured, but appear only when the player opens results after completion. Every finish receives the same main celebration. First-level contextual help and a revisitable pause-menu guide explain lift, steering and the need to let a ring settle. Restarting an active attempt requires an explicit choice; saved completions remain intact.
+
+Stack acceptance accounts for the ring's full projected height when contact geometry prevents deep nesting. A ring must still descend over the tip, be physically supported, settle at low speed and fit an available peg slot. No ring is teleported into a scoring position.
 
 Five total stars unlock Apricot enamel; ten unlock Moonstone. These are cosmetic changes.
 

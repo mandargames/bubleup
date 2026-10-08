@@ -195,6 +195,23 @@ namespace PocketToys.Tests
         }
 
         [UnityTest]
+        public IEnumerator OffsetStackSupportedBesideALooseRingStillCounts()
+        {
+            for (int i = 0; i < 2; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+            game.StartLevel(2); var tip = game.PegTip(1);
+            var first = game.Rings[0]; var second = game.Rings[1]; var loose = game.Rings[2];
+            second.Body.position = new Vector3(-2f, -1.9f, -.75f); loose.Body.position = new Vector3(-1f, -1.9f, -.75f);
+            first.Body.position = new Vector3(tip.x - .02f, tip.y + .6f, -.75f); first.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 250 && !first.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Captured);
+            loose.Body.position = new Vector3(tip.x + .53f, first.Body.position.y + .20f, -.75f); loose.Body.linearVelocity = Vector3.zero;
+            second.Body.position = new Vector3(tip.x + .01f, tip.y + .6f, -.75f); second.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 300 && !second.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(second.Captured, "A physically supported threaded ring must not be rejected because the stack nests less deeply.");
+            Assert.That(game.Occupied(1), Is.EqualTo(2)); Assert.IsFalse(loose.Captured);
+        }
+
+        [UnityTest]
         public IEnumerator SeatedRingStaysLockedThroughPumpsSteeringAndPause()
         {
             game.Progress.Data.Record(game.campaign.levels[0].id).stars = 3; game.StartLevel(1);
@@ -287,21 +304,22 @@ namespace PocketToys.Tests
             {
                 game.StartLevel(0); var ring = game.Rings[0];
                 game.Sensor.SetVirtualTilt(side);
-                for (int step = 0; step < 250 && ring.Body.position.x * side < 2.92f; step++)
+                float edge = ToyPresentation.TankHalfWidth - .5f;
+                for (int step = 0; step < 250 && ring.Body.position.x * side < edge + .02f; step++)
                     yield return new WaitForFixedUpdate();
-                Assert.That(ring.Body.position.x * side, Is.GreaterThan(2.9f), "Steering must reach the expanded outer lane.");
+                Assert.That(ring.Body.position.x * side, Is.GreaterThan(edge), "Steering must reach the outer lane.");
                 for (int tap = 0; tap < 24 && ring.Body.position.y < game.Presentation.PlayfieldTop - .6f; tap++)
                 {
                     game.Pump(side < 0);
                     yield return new WaitForSeconds(.25f);
                 }
-                Assert.That(ring.Body.position.x * side, Is.GreaterThan(2.9f), "Pumping must not drag a ring back toward the center.");
-                Assert.That(ring.Body.position.y, Is.GreaterThan(game.Presentation.PlayfieldTop - .6f), "The corner jet must reach the top of the expanded tank.");
+                Assert.That(ring.Body.position.x * side, Is.GreaterThan(edge), "Pumping must not drag a ring back toward the center.");
+                Assert.That(ring.Body.position.y, Is.GreaterThan(game.Presentation.PlayfieldTop - .6f), "The corner jet must reach the top of the tank.");
                 Assert.That(Mathf.Abs(ring.Body.position.x), Is.LessThan(ToyPresentation.TankHalfWidth - .3f));
                 Assert.That(ring.Body.position.y, Is.LessThan(game.Presentation.PlayfieldTop - .15f));
                 game.Sensor.SetVirtualTilt(-side);
                 yield return new WaitForSeconds(1.1f);
-                Assert.That(ring.Body.position.x * side, Is.LessThan(2.5f), "A ring must be able to steer back out of a corner.");
+                Assert.That(ring.Body.position.x * side, Is.LessThan(edge - .4f), "A ring must be able to steer back out of a corner.");
             }
         }
 
@@ -350,8 +368,14 @@ namespace PocketToys.Tests
             left.OnPointerDown(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current));
             Assert.That(game.Pumps, Is.EqualTo(1));
             game.Pause(); yield return null; Capture("pause");
+            game.OpenHelp(); yield return null; Capture("help"); game.CloseHelp();
+            game.RequestRestart(); yield return null; Capture("confirm-restart");
             game.SetScreen(GameScreen.Levels); yield return null; Capture("levels");
             game.OpenSettings(); yield return null; Capture("settings");
+            game.SetScreen(GameScreen.Controls); yield return null; Capture("controls");
+            game.SetScreen(GameScreen.Complete); yield return null; Capture("complete");
+            game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "VIEW RESULTS & STARS").onClick.Invoke();
+            yield return null; Capture("complete-results");
             game.SetScreen(GameScreen.Collection); yield return null; Capture("collection");
             for (int i = 0; i < 4; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
             game.StartLevel(4); yield return new WaitForSeconds(.1f); Capture("level-05");
@@ -384,10 +408,19 @@ namespace PocketToys.Tests
                 var corners = new Vector3[4]; settings.GetComponent<RectTransform>().GetWorldCorners(corners);
                 foreach (var corner in corners) Assert.IsTrue(safe.Contains(camera.WorldToScreenPoint(corner)), "Settings must clear the notch and safe edges.");
                 float waterWidth = camera.WorldToScreenPoint(new Vector3(ToyPresentation.TankHalfWidth, 0, 0)).x - camera.WorldToScreenPoint(new Vector3(-ToyPresentation.TankHalfWidth, 0, 0)).x;
-                Assert.That(waterWidth / size.x, Is.GreaterThan(.85f), "The camera must reframe when the phone aspect changes.");
+                Assert.That(waterWidth / size.x, Is.GreaterThan(.65f), "Keep a useful arena width on short and tall phones.");
                 float top = camera.WorldToScreenPoint(new Vector3(0, game.Presentation.PlayfieldTop, 0)).y;
                 float bottom = camera.WorldToScreenPoint(new Vector3(0, ToyPresentation.TankBottom, 0)).y;
-                Assert.That((top - bottom) / safe.height, Is.GreaterThan(.67f), "The actual tank must occupy most of the safe screen height.");
+                Assert.That((top - bottom) / safe.height, Is.InRange(.48f, .72f), "A bounded arena must leave room for reachable controls without vertical stretching.");
+                Assert.That(waterWidth / (top - bottom), Is.EqualTo(5.6f / 7.2f).Within(.01f), "The water and physics proportions must be identical across phones.");
+                Assert.That(waterWidth / 5.6f * .782f, Is.GreaterThan(34f), "Rings must remain legible on the compact test phone.");
+                foreach (var target in game.Hud.GetComponentsInChildren<RectTransform>().Where(x => x.GetComponent<PumpPress>() || x.GetComponent<Slider>() || x.GetComponent<Button>()))
+                {
+                    target.GetWorldCorners(corners);
+                    var a = camera.WorldToScreenPoint(corners[0]); var b = camera.WorldToScreenPoint(corners[2]);
+                    Assert.That(b.y - a.y, Is.GreaterThanOrEqualTo(43.9f), target.name + " needs a finger-sized hit area.");
+                    foreach (var corner in corners) Assert.IsTrue(safe.Contains(camera.WorldToScreenPoint(corner)), target.name + " must stay in the safe area.");
+                }
                 Assert.That(game.Hud.GetComponentsInChildren<Button>().Length, Is.EqualTo(1), "Gameplay keeps one compact menu button.");
                 settings.onClick.Invoke(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
                 var position = game.Rings[0].Body.position; yield return new WaitForSeconds(.1f);
@@ -395,6 +428,44 @@ namespace PocketToys.Tests
                 Assert.IsTrue(game.Hud.GetComponentsInChildren<Button>().Any(x => x.name == "LEVELS"));
                 game.Resume(); Assert.IsTrue(game.Playing);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator TouchReleasePauseHelpAndRestartDoNotLoseOrStickInput()
+        {
+            game.StartLevel(0);
+            var slider = game.Hud.GetComponentsInChildren<Slider>().Single(); slider.value = 1;
+            yield return new WaitForSeconds(.4f); Assert.That(game.Sensor.Tilt.x, Is.GreaterThan(.5f));
+            var release = slider.GetComponent<CenterOnRelease>();
+            release.OnPointerUp(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current));
+            yield return new WaitForSeconds(.7f); Assert.That(Mathf.Abs(game.Sensor.Tilt.x), Is.LessThan(.05f));
+            slider.value = -1;
+            var pump = game.Hud.GetComponentsInChildren<PumpPress>().First();
+            var pointer = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current) { pointerId = 4 };
+            pump.OnPointerDown(pointer); yield return new WaitForSeconds(.2f);
+            pump.OnPointerDown(pointer); Assert.That(game.Pumps, Is.EqualTo(1), "Holding a finger must not create duplicate presses.");
+            pump.OnPointerUp(pointer); pump.OnPointerDown(pointer); Assert.That(game.Pumps, Is.EqualTo(2));
+            game.Pause(); var position = game.Rings[0].Body.position; var elapsed = game.Elapsed;
+            game.OpenHelp(); yield return new WaitForSeconds(.4f);
+            Assert.That(game.Rings[0].Body.position, Is.EqualTo(position)); Assert.That(game.Elapsed, Is.EqualTo(elapsed));
+            game.CloseHelp(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+            game.RequestRestart(); Assert.That(game.Screen, Is.EqualTo(GameScreen.ConfirmRestart));
+            game.Resume(); yield return new WaitForSeconds(.7f);
+            Assert.That(game.Pumps, Is.EqualTo(2)); Assert.That(Mathf.Abs(game.Sensor.Tilt.x), Is.LessThan(.05f));
+            game.RequestRestart(); game.Restart(); Assert.That(game.Pumps, Is.Zero);
+        }
+
+        [Test]
+        public void RepeatedPumpsHaveBoundedVoicesAndRespectMute()
+        {
+            game.Audio.Configure(true, false, false);
+            for (int i = 0; i < 20; i++) game.Audio.Pump(i % 2 == 0);
+            game.Audio.Catch(1); game.Audio.Success();
+            var voices = game.Audio.GetComponents<AudioSource>();
+            Assert.That(voices.Count(x => x.clip != null && x.clip.name == "Gentle bubble cluster"), Is.EqualTo(2));
+            Assert.IsTrue(voices.Any(x => x.clip != null && x.clip.name == "Completion chord"));
+            game.Audio.Configure(false, false, false); game.Audio.Pump(true);
+            Assert.IsTrue(voices.All(x => !x.isPlaying));
         }
 
         [Test]

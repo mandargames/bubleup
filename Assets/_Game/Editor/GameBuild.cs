@@ -38,7 +38,8 @@ namespace PocketToys.Editor
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             PlayerSettings.productName = "Pocket Toys"; PlayerSettings.companyName = "Pocket Toys Local";
-            PlayerSettings.bundleVersion = "0.2.3";
+            PlayerSettings.bundleVersion = "0.2.4";
+            PlayerSettings.iOS.buildNumber = "5";
             PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { GameIcon.Create() }, IconKind.Any);
             PlayerSettings.defaultScreenWidth = 600; PlayerSettings.defaultScreenHeight = 1000;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;

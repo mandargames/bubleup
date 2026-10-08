@@ -2,6 +2,8 @@
 
 The approved delivery is five polished levels with the core game systems. This is a local playable beta, not a claim of store readiness or proven retention.
 
+The October UX implementation and its current validation are tracked in [Research/IMPLEMENTATION.md](Research/IMPLEMENTATION.md). Earlier iPhone cloud builds compiled successfully and an earlier version launched according to the owner. Those results do not qualify a new candidate's phone behavior.
+
 | Area | Implemented | Remaining evidence or integration |
 | --- | --- | --- |
 | Physical interaction | Water drag and settling, gradual water jets, gentler filtered steering, hollow compound ring colliders, stable ring angle, solid pegs/shelves, locked catches and moving pegs | Real-phone comfort, latency and sustained hands-on difficulty tuning |
@@ -23,7 +25,7 @@ Capture player observations for each level: whether the objective is understood,
 
 ## Physics choice
 
-The chamber uses 3D bodies with their centers constrained to a plane. Each ring has sixteen capsule segments around its open center; the rendered torus and colliders share a stable angle to prevent sideways wedging on pegs. Peg stems, shelves, baffles and other rings participate in collision response. Low-friction contacts, drag and gravity minus buoyancy operate throughout flight and descent. Pump force is vertical and distributed over a short pulse rather than directly overwriting velocity; it adds no lateral shove. The 6.8 by 7.2 chamber and separated jets provide wider outer routes. Steering acceleration remains gentle, and the saved sensitivity setting applies to phone, keyboard and slider input.
+The chamber uses 3D bodies with their centers constrained to a plane. Each ring has sixteen capsule segments around its open center; the rendered torus and colliders share a stable angle to prevent sideways wedging on pegs. Peg stems, shelves, baffles and other rings participate in collision response. Low-friction contacts, drag and gravity minus buoyancy operate throughout flight and descent. Pump force is vertical and distributed over a short pulse rather than directly overwriting velocity; it adds no lateral shove. The bounded 5.6 by 7.2 chamber retains its shape across phone proportions. Steering acceleration remains gentle, and the saved sensitivity setting applies to phone, keyboard and slider input.
 
 A descending crossing through the peg's opening marks threading, but the ring remains dynamic. Scoring requires low-speed, supported contact near the shelf or stack. A scored ring becomes kinematic at its resting position relative to the peg and ignores pumps and steering permanently for that attempt. Its colliders remain solid for stacking, and it follows moving pegs. Completion follows after all rings lock; menus and the completion screen pause movement. This is a constrained toy simulation with simplified water forces, not unrestricted 3D fluid dynamics.
 
