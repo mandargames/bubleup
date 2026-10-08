@@ -1,3 +1,10 @@
+## 2026-10-08 - Version 0.3.0 build and validation pass
+
+- Prepared version 0.3.0, iPhone build 6 and Android version code 6 while preserving the existing app identifiers. Android output now goes to its own versioned folder.
+- Passed 19 EditMode and 33 PlayMode checks. Added campaign/recipe agreement, current bounds/timing, expansion startup/help, collector quota, deadline ordering, freeze retry/progress and fish pause/restart coverage. The existing control-only pilot completed the original five levels again; the ten new levels still need full playthroughs and human tuning.
+- Reviewed representative expansion renders and the freeze screen after its transition; its focused regression passed again. No runtime repair was required during this build pass.
+- Built and verified the Android ARM64 IL2CPP APK and unsigned physical-iPhone IPA. The APK signature matches the prior local Android package. The IPA app and UnityFramework are ARM64/iOS device binaries, version 0.3.0/build 6. Both packages contain all fifteen level IDs. Docs/Research/BUILD_0_3_0.md records the artifact link, checksums and remaining device verification.
+
 ## 2026-10-08 - Four follow-on stages, fifteen total source prototypes
 
 - Added Frost Crossing (mixed weights, low baffle, 75-second freeze deadline), Thermal Staircase (staggered lift zones), Passing Window (moving peg and a warned fish route), and Quiet Shoal (four-of-six mini collection through a steady sideways current).

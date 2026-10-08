@@ -602,6 +602,7 @@ namespace PocketToys.Tests
             Assert.That(game.Progress.Data.Record("water_01").stars, Is.EqualTo(3));
             int pumps = game.Pumps; game.Pump(true); game.Resume();
             Assert.That(game.Pumps, Is.EqualTo(pumps)); Assert.That(game.Screen, Is.EqualTo(GameScreen.Frozen));
+            yield return new WaitForSeconds(.2f); // Capture after the screen transition finishes.
             Capture("ice-expired"); game.Restart(); Assert.That(game.Elapsed, Is.Zero);
             Assert.IsTrue(game.Rings.All(r => !r.Captured));
             // Inject completed catch events at the boundary to isolate update ordering;

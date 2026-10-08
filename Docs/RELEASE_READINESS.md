@@ -1,6 +1,6 @@
 # Integrated local build — release readiness
 
-The earlier delivery covered five levels with the core game systems. The owner has since approved further changes before building/testing: a fifteen-stage source campaign with weights, mini-ring trays, timed ice, spatially authored currents and fish, including four follow-on combinations. That expansion is **not yet compiled, rendered or gameplay-tested**; see [its verification plan](Research/NEXT_LEVELS.md). The historical five-level evidence below does not establish expansion readiness. This is not a claim of store readiness or proven retention.
+The current test candidate is the fifteen-stage 0.3.0 campaign with weights, mini-ring trays, timed ice, spatially authored currents and fish. Its [build record](Research/BUILD_0_3_0.md) records 52 passing automated checks, representative desktop renders and mobile package status. Full playthroughs of the new stages and physical-phone qualification remain outstanding. The historical five-level evidence below does not establish expansion readiness. This is not a claim of store readiness or proven retention.
 
 The October UX implementation and its current validation are tracked in [Research/IMPLEMENTATION.md](Research/IMPLEMENTATION.md). Earlier iPhone cloud builds compiled successfully and an earlier version launched according to the owner. Those results do not qualify a new candidate's phone behavior.
 

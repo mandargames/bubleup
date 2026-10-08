@@ -1,6 +1,6 @@
 # Pocket Toys: weights, small rings and changing environments
 
-8 October 2026. **Source prototypes implemented; builds and gameplay testing deferred at the owner's request.** This is the current expansion plan and implementation record. The earlier [ring repair](RING_DESIGN.md) and its 46 passing checks describe the preceding revision, not verification of this expansion.
+8 October 2026. **The owner-requested 0.3.0 Android and unsigned iPhone builds succeeded.** The [build record](BUILD_0_3_0.md) records 52 passing automated checks, verified packages and remaining phone review. This document records the expansion design and tuning assumptions. The earlier [ring repair](RING_DESIGN.md) and its 46 checks describe the preceding revision.
 
 ## Design direction
 
@@ -91,11 +91,11 @@ Zone clocks use the same elapsed-attempt clock as the freeze timer and moving pe
 
 Future stages should still earn their place through a different understandable plan. The follow-on layouts are implemented for the later review pass, not evidence that every combination belongs in the release campaign.
 
-## Deferred verification
+## Verification and remaining device review
 
-This session performed C# syntax parsing and source/data review. **It did not run Unity compilation, EditMode/PlayMode suites, rendering, device tests or build a new IPA/APK.** No claim is made that the new campaign is already winnable, visually approved or comfortable on a phone.
+The initial implementation sessions performed only C# syntax parsing and source/data review, as requested then. The owner subsequently authorized building. Unity import/compilation, 19 EditMode checks and 33 PlayMode checks now pass; representative desktop renders were inspected. See the [build record](BUILD_0_3_0.md) for exact scope and packages. Full control-only completion of the ten new stages, physical-device rendering, haptics, performance and human difficulty remain unverified.
 
-Before delivery, the next verification pass must cover:
+The review plan below remains the checklist for coverage; passing a subset does not imply every item is complete:
 
 1. Import and compile the new scripts, metadata, campaign and shader in Unity. Verify all fifteen serialized lessons and the fresh-project content recipe agree. Check the water shader on both mobile graphics backends; the added zone overlay requires shader model 3.0.
 2. Re-run the existing regression suites. The content-count assertion now expects fifteen. Existing control-only journey coverage still covers the original five. The standalone audit explicitly reports that scope, rather than claiming to validate the full expansion.
@@ -106,4 +106,4 @@ Before delivery, the next verification pass must cover:
 7. Profile the eight-ring scene on lower-powered phones. It currently has up to 256 ring contact segments, twice the four-ring repair scene. Profile CPU physics, GPU shader cost and frame pacing before deciding whether it is acceptable.
 8. Bump the release version/build numbers, then create and install fresh packages. The previously delivered 0.2.4 files contain none of these expansion changes or the later flat-ring repair.
 
-The implementation is saved locally for continued changes. No cloud build, purchase, merge or publication was triggered.
+The implementation remains editable locally. The owner-requested 0.3.0 pass uses the existing unsigned iPhone cloud workflow; no paid membership, merge or store publication is involved.
