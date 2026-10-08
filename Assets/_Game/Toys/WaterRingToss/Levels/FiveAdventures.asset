@@ -20,7 +20,7 @@ MonoBehaviour:
     title: First Splash
     chapter: FIRST SPLASH
     lesson: One ring. Find the rhythm.
-    hint: Lift above the peg, then ease into the landing.
+    hint: Lift beside the peg, then steer over its tip.
     rings:
     - {x: -1.1, y: -1.85}
     pegs:
@@ -42,7 +42,7 @@ MonoBehaviour:
     title: Double Dip
     chapter: FIND THE BALANCE
     lesson: Two rings, one satisfying stack.
-    hint: Caught rings stay put. Guide the next one home.
+    hint: Landed rings lock in place. Stack the next one on top.
     rings:
     - {x: -1.25, y: -1.85}
     - {x: 1.25, y: -1.85}
@@ -157,3 +157,528 @@ MonoBehaviour:
     goldSeconds: 80
     goldPumps: 38
     starsRequired: 4
+  - id: "water_06"
+    title: "Feather and Pebble"
+    chapter: "NEW CURRENTS"
+    lesson: "Mint rises readily. Violet settles sooner."
+    hint: "One mark is light; three marks are heavy. Try a short pump."
+    rings:
+    - x: -0.6
+      y: -1.85
+    - x: 0.6
+      y: -1.85
+    ringBehaviours:
+    - kind: 1
+    - kind: 2
+    pegs:
+    - tip: {x: -1.05, y: 1.75}
+      length: 1.6
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.05, y: 0.9}
+      length: 1.4
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 0
+    fishSeed: 176
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 100
+    goldSeconds: 50
+    goldPumps: 24
+    starsRequired: 5
+  - id: "water_07"
+    title: "Bubble Garden"
+    chapter: "NEW CURRENTS"
+    lesson: "Guide a group. Collect any six of eight."
+    hint: "Pump up the middle, then steer down into either open tray."
+    rings:
+    - x: -0.975
+      y: -1.55
+    - x: -0.325
+      y: -1.55
+    - x: 0.325
+      y: -1.55
+    - x: 0.975
+      y: -1.55
+    - x: -0.975
+      y: -2.2
+    - x: -0.325
+      y: -2.2
+    - x: 0.325
+      y: -2.2
+    - x: 0.975
+      y: -2.2
+    ringBehaviours:
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    pegs: []
+    baffles: []
+    collectors:
+    - center: {x: -1.7, y: 0.65}
+      width: 1.35
+      height: 0.9
+      capacity: 4
+    - center: {x: 1.7, y: 0.65}
+      width: 1.35
+      height: 0.9
+      capacity: 4
+    requiredCatches: 6
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 0
+    fishSeed: 177
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 110
+    goldSeconds: 55
+    goldPumps: 22
+    starsRequired: 6
+  - id: "water_08"
+    title: "First Frost"
+    chapter: "NEW CURRENTS"
+    lesson: "Land both rings before the tank freezes."
+    hint: "You have 60 seconds. Open settings to pause the countdown."
+    rings:
+    - x: -1.2
+      y: -1.85
+    - x: 1.2
+      y: -1.85
+    ringBehaviours:
+    - kind: 0
+    - kind: 0
+    pegs:
+    - tip: {x: -1.05, y: 1.1}
+      length: 1.45
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.05, y: 1.5}
+      length: 1.7
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 1
+    freezeSeconds: 60
+    fishTraffic: 0
+    fishSeed: 178
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 50
+    goldSeconds: 35
+    goldPumps: 16
+    starsRequired: 7
+  - id: "water_09"
+    title: "Lava Lift"
+    chapter: "NEW CURRENTS"
+    lesson: "Ride a rising current. Settle while it rests."
+    hint: "The glowing vent warns before it rises. Left and right take turns."
+    rings:
+    - x: -0.9
+      y: -1.85
+    - x: 0.9
+      y: -1.85
+    ringBehaviours:
+    - kind: 0
+    - kind: 0
+    pegs:
+    - tip: {x: -1.1, y: 1.8}
+      length: 1.6
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.1, y: 1.8}
+      length: 1.6
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 2
+    freezeSeconds: 0
+    fishTraffic: 0
+    fishSeed: 179
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 110
+    goldSeconds: 55
+    goldPumps: 22
+    starsRequired: 8
+  - id: "water_10"
+    title: "Passing Company"
+    chapter: "NEW CURRENTS"
+    lesson: "Watch the edge. Let the fish pass."
+    hint: "A fish can nudge a loose ring. Landed rings stay safe."
+    rings:
+    - x: -1.2
+      y: -1.85
+    - x: 1.2
+      y: -1.85
+    ringBehaviours:
+    - kind: 0
+    - kind: 0
+    pegs:
+    - tip: {x: -1.1, y: 1.15}
+      length: 1.5
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.1, y: 1.8}
+      length: 1.8
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 1
+    fishSeed: 180
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.35
+    - 2.4
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 110
+    goldSeconds: 55
+    goldPumps: 22
+    starsRequired: 9
+  - id: "water_11"
+    title: "Reef Rhythm"
+    chapter: "NEW CURRENTS"
+    lesson: "Three weights. Choose your landing order."
+    hint: "Light rings drift longer; heavy rings resist a fish nudge."
+    rings:
+    - x: -1.6
+      y: -1.85
+    - x: 0
+      y: -1.85
+    - x: 1.6
+      y: -1.85
+    ringBehaviours:
+    - kind: 1
+    - kind: 0
+    - kind: 2
+    pegs:
+    - tip: {x: -1.4, y: 0.95}
+      length: 1.45
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 0, y: 1.85}
+      length: 1.55
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.4, y: 0.95}
+      length: 1.45
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles:
+    - center: {x: 0, y: -0.35}
+      size: {x: 0.9, y: 0.16}
+      angle: 0
+    collectors: []
+    requiredCatches: 0
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 1
+    fishSeed: 181
+    fishInterval: 7
+    fishSpeed: 1.2
+    fishLanes:
+    - 0.65
+    - 2.35
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 150
+    goldSeconds: 80
+    goldPumps: 34
+    starsRequired: 10
+  - id: "water_12"
+    title: "Frost Crossing"
+    chapter: "CHANGING WATERS"
+    lesson: "Choose a route. Land both before the freeze."
+    hint: "75 seconds. Pass beside the low barrier; mint floats longer than violet."
+    rings:
+    - x: -1.3
+      y: -1.85
+    - x: 1.3
+      y: -1.85
+    ringBehaviours:
+    - kind: 1
+    - kind: 2
+    pegs:
+    - tip: {x: -1.25, y: 1.6}
+      length: 1.6
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1.25, y: 2.15}
+      length: 1.9
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles:
+    - center: {x: 0, y: -0.35}
+      size: {x: 1.65, y: 0.16}
+      angle: 12
+    collectors: []
+    requiredCatches: 0
+    biome: 1
+    freezeSeconds: 75
+    fishTraffic: 0
+    fishSeed: 182
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 65
+    goldSeconds: 45
+    goldPumps: 26
+    starsRequired: 11
+  - id: "water_13"
+    title: "Thermal Staircase"
+    chapter: "CHANGING WATERS"
+    lesson: "Ride the lower current. Transfer to the upper."
+    hint: "Amber arrows warn, bright arrows lift. Steer across, then release to settle."
+    rings:
+    - x: -1.7
+      y: -1.85
+    - x: -0.75
+      y: -1.85
+    ringBehaviours:
+    - kind: 0
+    - kind: 0
+    pegs:
+    - tip: {x: -0.65, y: 0.9}
+      length: 1.2
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 1, y: 2.65}
+      length: 1.55
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 2
+    freezeSeconds: 0
+    fishTraffic: 0
+    fishSeed: 183
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 130
+    goldSeconds: 70
+    goldPumps: 26
+    starsRequired: 12
+    currents:
+    - label: "Lower current"
+      center: {x: -1.65, y: -0.7}
+      size: {x: 1.45, y: 3.2}
+      acceleration: {x: 0, y: 5.6}
+      period: 12
+      startDelay: 0
+      warningSeconds: 1.5
+      activeSeconds: 4
+    - label: "Upper current"
+      center: {x: 0.55, y: 1.55}
+      size: {x: 2.1, y: 3.8}
+      acceleration: {x: 0, y: 5.4}
+      period: 12
+      startDelay: 4.5
+      warningSeconds: 1.5
+      activeSeconds: 4
+  - id: "water_14"
+    title: "Passing Window"
+    chapter: "CHANGING WATERS"
+    lesson: "Let the fish pass. Meet the drifting peg."
+    hint: "One peg drifts slowly. Wait beside it, then settle after the fish crosses."
+    rings:
+    - x: -1.2
+      y: -1.85
+    - x: 1.2
+      y: -1.85
+    ringBehaviours:
+    - kind: 0
+    - kind: 0
+    pegs:
+    - tip: {x: -1.4, y: 0.85}
+      length: 1.3
+      capacity: 1
+      movement: 0
+      speed: 0.6
+    - tip: {x: 0.6, y: 1.9}
+      length: 1.6
+      capacity: 1
+      movement: 0.65
+      speed: 0.45
+    baffles: []
+    collectors: []
+    requiredCatches: 0
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 1
+    fishSeed: 184
+    fishInterval: 9
+    fishSpeed: 1
+    fishLanes:
+    - 1.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 130
+    goldSeconds: 70
+    goldPumps: 26
+    starsRequired: 13
+  - id: "water_15"
+    title: "Quiet Shoal"
+    chapter: "CHANGING WATERS"
+    lesson: "Guide the drift. Collect any four of six."
+    hint: "Arrows drift right. Gently steer against them to fill the left tray too."
+    rings:
+    - x: -0.65
+      y: -1.55
+    - x: 0
+      y: -1.55
+    - x: 0.65
+      y: -1.55
+    - x: -0.65
+      y: -2.2
+    - x: 0
+      y: -2.2
+    - x: 0.65
+      y: -2.2
+    ringBehaviours:
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    - kind: 3
+    pegs: []
+    baffles: []
+    collectors:
+    - center: {x: -1.65, y: 0.5}
+      width: 1.6
+      height: 1
+      capacity: 3
+    - center: {x: 1.65, y: 0.5}
+      width: 1.6
+      height: 1
+      capacity: 3
+    requiredCatches: 4
+    biome: 0
+    freezeSeconds: 0
+    fishTraffic: 0
+    fishSeed: 185
+    fishInterval: 7
+    fishSpeed: 1.25
+    fishLanes:
+    - 1.5
+    - 2.5
+    thermalPeriod: 7.5
+    thermalStrength: 4.8
+    leftStrength: 5.8
+    rightStrength: 5.8
+    settling: 2.1
+    damping: 0.78
+    silverSeconds: 120
+    goldSeconds: 65
+    goldPumps: 24
+    starsRequired: 14
+    currents:
+    - label: "Gentle current"
+      center: {x: 0, y: 1.65}
+      size: {x: 4.9, y: 2.7}
+      acceleration: {x: 0.48, y: 0}
+      period: 0
+      startDelay: 0
+      warningSeconds: 1.5
+      activeSeconds: 4

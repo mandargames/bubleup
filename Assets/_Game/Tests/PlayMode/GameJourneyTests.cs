@@ -33,9 +33,30 @@ namespace PocketToys.Tests
         [UnityTearDown]
         public IEnumerator Teardown()
         {
-            Time.timeScale = 1f; Object.Destroy(root); GameSession.SavePathOverride = null;
+            Time.timeScale = 1f; ToyPresentation.SafeAreaOverride = null; Object.Destroy(root); GameSession.SavePathOverride = null;
             yield return null;
             if (Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true);
+        }
+
+        [Test]
+        public void BackdropIsVisibleFromCameraWithoutPhysics()
+        {
+            var backdrop = game.Presentation.transform.Find("Ocean atmosphere");
+            Assert.NotNull(backdrop);
+            Assert.IsNull(backdrop.GetComponent<Collider>());
+            var renderer = backdrop.GetComponent<MeshRenderer>();
+            Assert.That(renderer.sharedMaterial.shader.name, Is.EqualTo("PocketToys/OceanBackdrop"));
+            var mesh = backdrop.GetComponent<MeshFilter>().sharedMesh;
+            var vertices = mesh.vertices; var triangles = mesh.triangles;
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                var a = backdrop.TransformPoint(vertices[triangles[i]]);
+                var b = backdrop.TransformPoint(vertices[triangles[i + 1]]);
+                var c = backdrop.TransformPoint(vertices[triangles[i + 2]]);
+                Assert.That(Vector3.Dot(Vector3.Cross(b - a, c - a), game.Presentation.Camera.transform.position - a), Is.GreaterThan(0));
+            }
+            Assert.IsTrue(game.Ready);
+            Assert.NotNull(game.Hud);
         }
 
         [UnityTest]
@@ -60,26 +81,350 @@ namespace PocketToys.Tests
             Time.timeScale = 5f;
             for (int level = 0; level < 5; level++)
             {
-                game.StartLevel(level); FloatingRing selected = null;
+                game.StartLevel(level); FloatingRing selected = null; bool aboveTip = false; float stalled = 0f, reverseUntil = 0f, reverseDirection = 0f;
                 for (int step = 0; step < 15000 && game.Playing; step++)
                 {
-                    if (selected == null || selected.Captured) selected = game.Rings.Where(x => !x.Captured).OrderByDescending(x => x.Body.position.y).FirstOrDefault();
-                    if (selected == null) break;
+                    if (selected == null || selected.Captured) { selected = game.Rings.Where(x => !x.Captured).OrderByDescending(x => x.Body.position.y).FirstOrDefault(); aboveTip = false; stalled = 0f; reverseUntil = 0f; }
+                    if (selected == null) { game.Sensor.SetVirtualTilt(0f); yield return new WaitForFixedUpdate(); continue; }
                     var pos = selected.Body.position; var velocity = selected.Body.linearVelocity;
+                    stalled = velocity.magnitude < .2f ? stalled + Time.fixedDeltaTime : 0f;
                     int peg = Enumerable.Range(0, game.Level.pegs.Length).Where(i => game.Occupied(i) < game.Level.pegs[i].capacity)
-                        .OrderBy(i => Mathf.Abs(game.PegTip(i).x - pos.x)).First();
+                        .OrderByDescending(i => game.Level.pegs[i].capacity).ThenBy(i => Mathf.Abs(game.PegTip(i).x - pos.x)).First();
                     var target = game.PegTip(peg);
+                    if (selected.Threaded) { peg = selected.PegIndex; target = game.PegTip(peg); }
+                    bool fullPeg = selected.Threaded && game.Occupied(peg) >= game.Level.pegs[peg].capacity;
+                    if (pos.y > target.y + .45f) aboveTip = true;
+                    if (pos.y < target.y - .35f && !selected.Threaded) aboveTip = false;
                     float targetX = target.x;
+                    if (!aboveTip && !selected.Threaded)
+                    {
+                        float side = Mathf.Abs(target.x) > 1.25f ? -Mathf.Sign(target.x) : Mathf.Abs(target.x) > .5f ? Mathf.Sign(target.x) : pos.x < target.x ? -1f : 1f;
+                        float offset = Mathf.Abs(target.x) > 1.25f ? (pos.y < target.y - game.Level.pegs[peg].length + .28f ? 1.1f : .48f) : .98f;
+                        targetX = Mathf.Clamp(target.x + side * offset, -2.16f, 2.16f);
+                    }
                     if (game.Level.baffles.Length > 0 && pos.y < .5f && Mathf.Abs(targetX) < 1.25f) targetX = targetX < 0f ? -1.5f : 1.5f;
+                    if (!selected.Threaded) targetX = LocalPlayerAudit.ApproachOutsideLockedRings(game, pos, targetX);
                     game.Sensor.SetVirtualTilt(Mathf.Clamp(-2.8f * (pos.x - targetX) - 1.3f * velocity.x, -1f, 1f));
-                    if (pos.y < target.y - .13f && velocity.y < 1.6f) game.Pump(pos.x <= 0f);
+                    if (game.Elapsed < reverseUntil) game.Sensor.SetVirtualTilt(reverseDirection);
+                    else if (stalled > 1.5f && !selected.Threaded)
+                    {
+                        // Release a rim caught beneath a locked neighbor before lifting.
+                        // Repeated blocked pumps are not evidence of forward progress.
+                        reverseDirection = pos.x < targetX ? -1f : 1f;
+                        reverseUntil = game.Elapsed + .65f; stalled = 0f;
+                    }
+                    else if ((selected.Threaded || LocalPlayerAudit.HasLiftClearance(game, pos)) && (!aboveTip || fullPeg) && (!selected.Threaded || fullPeg) && pos.y < target.y + .5f && velocity.y < 1.6f)
+                    { game.Pump(pos.x <= 0f); }
+                    else if (stalled > 1.5f)
+                    {
+                        if (selected.Threaded || LocalPlayerAudit.HasLiftClearance(game, pos)) game.Pump(pos.x <= 0f);
+                        else if (!LocalPlayerAudit.LiftLooseRing(game, selected))
+                        {
+                            reverseDirection = pos.x < targetX ? -1f : 1f;
+                            reverseUntil = game.Elapsed + .65f;
+                        }
+                        stalled = 0f;
+                    }
                     yield return new WaitForFixedUpdate();
                 }
                 Debug.Log("Control audit: " + game.Level.title + ": " + game.Caught + "/" + game.Rings.Count + ", " + game.Elapsed.ToString("0.0") + " seconds, " + game.Pumps + " pumps.");
+                if (game.Playing)
+                {
+                    Capture("ring-reachability-failure");
+                    foreach (var ring in game.Rings) Debug.Log("Unfinished ring: position=" + ring.Body.position + " velocity=" + ring.Body.linearVelocity + " threaded=" + ring.Threaded + " captured=" + ring.Captured);
+                }
                 Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete), game.Level.title + " should be winnable through actual controls.");
                 Assert.That(game.Progress.Data.Record(game.Level.id).stars, Is.GreaterThan(0));
                 Assert.IsTrue(File.Exists(GameSession.SavePathOverride));
             }
+        }
+
+        [UnityTest]
+        public IEnumerator PegStemBlocksASideImpactBelowItsTip()
+        {
+            game.StartLevel(0); var ring = game.Rings[0];
+            ring.Body.position = new Vector3(-.85f, .35f, -.75f);
+            ring.Body.linearVelocity = new Vector3(6, 0, 0);
+            yield return new WaitForSeconds(.18f);
+            Assert.That(ring.Body.position.x, Is.LessThan(-.25f), "The visible peg stem must block the ring's rim.");
+            Assert.IsFalse(ring.Captured);
+        }
+
+        [UnityTest]
+        public IEnumerator LandingShelfBlocksAnUpwardRing()
+        {
+            game.StartLevel(0); var ring = game.Rings[0];
+            float shelfY = game.Level.pegs[0].tip.y - game.Level.pegs[0].length;
+            ring.Body.position = new Vector3(0, shelfY - .75f, -.75f);
+            ring.Body.linearVelocity = Vector3.up * 6f;
+            yield return new WaitForSeconds(.2f);
+            Assert.That(ring.Body.position.y, Is.LessThan(shelfY - .15f), "A pump cannot push a ring through the bottom of the shelf.");
+            Assert.IsFalse(ring.Captured);
+        }
+
+        [UnityTest]
+        public IEnumerator RingCanRiseBesideCompactPegSupport()
+        {
+            game.StartLevel(0); var ring = game.Rings[0];
+            float shelfY = game.Level.pegs[0].tip.y - game.Level.pegs[0].length;
+            foreach (float side in new[] { -1f, 1f })
+            {
+                ring.Body.position = new Vector3(side * .74f, shelfY - .55f, -.75f);
+                ring.Body.linearVelocity = Vector3.up * 6f;
+                yield return new WaitForSeconds(.2f);
+                Assert.That(ring.Body.position.y, Is.GreaterThan(shelfY + .25f), "The side route must be clear without pushing through a support.");
+                Assert.IsFalse(ring.Captured);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RingSlidesUnderGravityThenPhysicallyStacks()
+        {
+            game.Progress.Data.Record(game.campaign.levels[0].id).stars = 3;
+            game.StartLevel(1);
+            var first = game.Rings[0]; var second = game.Rings[1]; var tip = game.PegTip(0);
+            second.Body.position = new Vector3(2f, -1.85f, -.75f);
+            first.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f);
+            first.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 150 && !first.Threaded; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Threaded, "The open ring must pass over the peg's tip.");
+            Assert.IsFalse(first.Captured, "Crossing the tip alone must not score a catch.");
+            Assert.IsFalse(first.Body.isKinematic, "The ring must retain mass while sliding down the peg.");
+            float threadedY = first.Body.position.y;
+            yield return new WaitForSeconds(.18f);
+            Assert.That(first.Body.position.y, Is.LessThan(threadedY - .05f));
+            for (int i = 0; i < 200 && !first.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Captured, "The ring must settle on the shelf before scoring.");
+            Assert.IsTrue(first.Body.isKinematic, "A landed ring must lock onto the peg.");
+            Assert.IsTrue(first.GetComponentsInChildren<Collider>().All(c => c.enabled));
+            second.Body.position = new Vector3(tip.x, tip.y + .65f, -.75f);
+            second.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 250 && !second.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(second.Captured, "The second ring must land on the first ring's colliders.");
+            float minimumStackHeight = FloatingRing.Thickness / Mathf.Sin(FloatingRing.Pitch * Mathf.Deg2Rad);
+            Assert.That(second.Body.position.y - first.Body.position.y, Is.InRange(minimumStackHeight - .015f, FloatingRing.StackSpacing + .015f), "Solid flat rings must stack without interpenetration.");
+            yield return new WaitForSeconds(.4f);
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete));
+        }
+
+        [UnityTest]
+        public IEnumerator OffCenterLandingsStillCount()
+        {
+            Time.timeScale = 5f;
+            foreach (float offset in new[] { -.16f, .16f, -.19f, .19f })
+            {
+                game.StartLevel(0); var ring = game.Rings[0]; var tip = game.PegTip(0);
+                yield return new WaitForFixedUpdate();
+                ring.Body.position = new Vector3(tip.x + offset, tip.y + .6f, -.75f);
+                ring.Body.linearVelocity = Vector3.down;
+                for (int i = 0; i < 250 && !ring.Captured; i++) yield return new WaitForFixedUpdate();
+                Debug.Log($"Edge landing {offset}: position={ring.Body.position:F4}, velocity={ring.Body.linearVelocity:F4}, threaded={ring.Threaded}, captured={ring.Captured}");
+                Assert.IsTrue(ring.Captured, "An off-center ring that physically fits over the stem and settles on the shelf must count.");
+                Assert.That(game.Caught, Is.EqualTo(1));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RingBesideStemDoesNotScoreAndCanSteerClear()
+        {
+            game.Progress.Data.Record(game.campaign.levels[0].id).stars = 3; game.StartLevel(1);
+            var first = game.Rings[0]; var second = game.Rings[1]; var tip = game.PegTip(0);
+            second.Body.position = new Vector3(2f, -1.85f, -.75f);
+            first.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f); first.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 200 && !first.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Captured);
+            second.Body.position = first.Body.position + new Vector3(.57f, -.08f, 0f);
+            second.Body.linearVelocity = Vector3.zero;
+            yield return new WaitForSeconds(.2f);
+            Assert.IsFalse(second.Captured, "Touching the outside of a locked ring cannot earn a slot.");
+            Assert.That(game.Caught, Is.EqualTo(1));
+            game.Sensor.SetVirtualTilt(1f);
+            yield return new WaitForSeconds(.8f);
+            Assert.That(second.Body.position.x - first.Body.position.x, Is.GreaterThan(FloatingRing.OuterRadius * 2f + .03f), "Steering away must release the loose ring without restarting.");
+            float liftStart = second.Body.position.y;
+            game.Sensor.SetVirtualTilt(0f); game.Pump(false);
+            yield return new WaitForSeconds(.4f);
+            Assert.That(second.Body.position.y, Is.GreaterThan(liftStart + .6f), "The cleared ring must respond to a normal pump again.");
+            Assert.That(game.Caught, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator FullPegDoesNotCountAnExtraRing()
+        {
+            for (int i = 0; i < 2; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+            game.StartLevel(2); var tip = game.PegTip(0);
+            var first = game.Rings[0]; var second = game.Rings[1];
+            second.Body.position = new Vector3(1f, -1.85f, -.75f);
+            game.Rings[2].Body.position = new Vector3(2f, -1.85f, -.75f);
+            first.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f); first.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 200 && !first.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Captured);
+            second.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f); second.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 180; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(second.Threaded); Assert.IsFalse(second.Captured);
+            Assert.That(game.Occupied(0), Is.EqualTo(1)); Assert.That(game.Caught, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator OffsetStackSupportedBesideALooseRingStillCounts()
+        {
+            for (int i = 0; i < 2; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+            game.StartLevel(2); var tip = game.PegTip(1);
+            var first = game.Rings[0]; var second = game.Rings[1]; var loose = game.Rings[2];
+            second.Body.position = new Vector3(-2f, -1.9f, -.75f); loose.Body.position = new Vector3(-1f, -1.9f, -.75f);
+            first.Body.position = new Vector3(tip.x - .02f, tip.y + .6f, -.75f); first.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 250 && !first.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(first.Captured);
+            loose.Body.position = new Vector3(tip.x + .53f, first.Body.position.y + .20f, -.75f); loose.Body.linearVelocity = Vector3.zero;
+            second.Body.position = new Vector3(tip.x + .01f, tip.y + .6f, -.75f); second.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 300 && !second.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(second.Captured, "A physically supported threaded ring must not be rejected because the stack nests less deeply.");
+            Assert.That(game.Occupied(1), Is.EqualTo(2)); Assert.IsFalse(loose.Captured);
+        }
+
+        [UnityTest]
+        public IEnumerator SeatedRingStaysLockedThroughPumpsSteeringAndPause()
+        {
+            game.Progress.Data.Record(game.campaign.levels[0].id).stars = 3; game.StartLevel(1);
+            var ring = game.Rings[0]; var tip = game.PegTip(0);
+            game.Rings[1].Body.position = new Vector3(2f, -1.85f, -.75f);
+            ring.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f); ring.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 200 && !ring.Captured; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(ring.Captured); Assert.IsTrue(ring.Body.isKinematic);
+            Assert.That(game.Caught, Is.EqualTo(1)); Assert.That(game.Occupied(0), Is.EqualTo(1));
+            game.Pause(); var restingPosition = ring.Body.position;
+            yield return new WaitForSeconds(.2f);
+            Assert.That(ring.Body.position, Is.EqualTo(restingPosition));
+            game.Resume();
+            for (int i = 0; i < 8; i++)
+            {
+                game.Sensor.SetVirtualTilt(i < 4 ? -1f : 1f);
+                game.Pump(true); game.Pump(false);
+                yield return new WaitForSeconds(.2f);
+                Assert.That(Vector3.Distance(ring.Body.position, restingPosition), Is.LessThan(.005f));
+                Assert.IsTrue(ring.Captured); Assert.IsTrue(ring.Body.isKinematic);
+                Assert.That(game.Caught, Is.EqualTo(1)); Assert.That(game.Occupied(0), Is.EqualTo(1));
+            }
+            Assert.IsTrue(ring.GetComponentsInChildren<Collider>().All(c => c.enabled));
+            game.Restart();
+            Assert.That(game.Caught, Is.Zero); Assert.That(game.Occupied(0), Is.Zero);
+            Assert.IsTrue(game.Rings.All(r => !r.Captured && !r.Body.isKinematic));
+        }
+
+        [UnityTest]
+        public IEnumerator LockedRingFollowsMovingPeg()
+        {
+            for (int i = 0; i < 4; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+            game.StartLevel(4);
+            var ring = game.Rings[0]; var tip = game.PegTip(1);
+            ring.Body.position = new Vector3(tip.x, tip.y + .6f, -.75f);
+            ring.Body.linearVelocity = Vector3.down;
+            for (int i = 0; i < 250 && !ring.Captured; i++)
+            {
+                game.Sensor.SetVirtualTilt(Mathf.Clamp(-2.8f * (ring.Body.position.x - game.PegTip(1).x) - 1.3f * ring.Body.linearVelocity.x, -1f, 1f));
+                yield return new WaitForFixedUpdate();
+            }
+            Assert.IsTrue(ring.Captured); Assert.That(ring.PegIndex, Is.EqualTo(1));
+            Vector2 offset = (Vector2)ring.Body.position - game.PegTip(1);
+            float startX = ring.Body.position.x;
+            for (int i = 0; i < 8; i++)
+            {
+                game.Pump(true); game.Pump(false);
+                yield return new WaitForSeconds(.2f);
+                Assert.That(Vector2.Distance((Vector2)ring.Body.position - game.PegTip(1), offset), Is.LessThan(.02f));
+                Assert.IsTrue(ring.Captured); Assert.IsTrue(ring.Body.isKinematic);
+            }
+            Assert.That(Mathf.Abs(ring.Body.position.x - startX), Is.GreaterThan(.03f));
+        }
+
+        [UnityTest]
+        public IEnumerator SensitivitySettingSoftensVirtualSteering()
+        {
+            game.Settings.sensitivity = .8f; game.SaveSettings();
+            game.Sensor.SetVirtualTilt(1f);
+            yield return new WaitForSeconds(.6f);
+            float gentle = game.Sensor.Tilt.x;
+            game.Settings.sensitivity = 2.5f; game.SaveSettings();
+            game.Sensor.SetVirtualTilt(1f);
+            yield return new WaitForSeconds(.6f);
+            Assert.That(gentle, Is.InRange(.2f, .4f));
+            Assert.That(game.Sensor.Tilt.x, Is.GreaterThan(gentle * 2f));
+        }
+
+        [UnityTest]
+        public IEnumerator BothPumpsLiftWithoutSidewaysShove()
+        {
+            foreach (bool left in new[] { true, false })
+            {
+                game.StartLevel(0); var ring = game.Rings[0];
+                float x = left ? -ToyPresentation.NozzleX : ToyPresentation.NozzleX;
+                ring.Body.position = new Vector3(x, -1.85f, -.75f);
+                ring.Body.linearVelocity = Vector3.zero;
+                game.Pump(left);
+                yield return new WaitForSeconds(.35f);
+                Assert.That(ring.Body.position.y, Is.GreaterThan(-1.15f), "Each pump must still provide useful lift.");
+                Assert.That(Mathf.Abs(ring.Body.position.x - x), Is.LessThan(.03f), "Neither pump should push a resting ring sideways.");
+                Assert.That(Mathf.Abs(ring.Body.linearVelocity.x), Is.LessThan(.05f));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SteeringAndPumpsReachBothOuterCorners()
+        {
+            foreach (float side in new[] { -1f, 1f })
+            {
+                game.StartLevel(0); var ring = game.Rings[0];
+                game.Sensor.SetVirtualTilt(side);
+                float edge = ToyPresentation.TankHalfWidth - .5f;
+                for (int step = 0; step < 250 && ring.Body.position.x * side < edge + .02f; step++)
+                    yield return new WaitForFixedUpdate();
+                Assert.That(ring.Body.position.x * side, Is.GreaterThan(edge), "Steering must reach the outer lane.");
+                for (int tap = 0; tap < 24 && ring.Body.position.y < game.Presentation.PlayfieldTop - .6f; tap++)
+                {
+                    game.Pump(side < 0);
+                    yield return new WaitForSeconds(.25f);
+                }
+                Assert.That(ring.Body.position.x * side, Is.GreaterThan(edge), "Pumping must not drag a ring back toward the center.");
+                Assert.That(ring.Body.position.y, Is.GreaterThan(game.Presentation.PlayfieldTop - .6f), "The corner jet must reach the top of the tank.");
+                Assert.That(Mathf.Abs(ring.Body.position.x), Is.LessThan(ToyPresentation.TankHalfWidth - .3f));
+                Assert.That(ring.Body.position.y, Is.LessThan(game.Presentation.PlayfieldTop - .15f));
+                game.Sensor.SetVirtualTilt(-side);
+                yield return new WaitForSeconds(1.1f);
+                Assert.That(ring.Body.position.x * side, Is.LessThan(edge - .4f), "A ring must be able to steer back out of a corner.");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WaterJetBuildsMomentumAndPausePreservesIt()
+        {
+            game.StartLevel(0); var ring = game.Rings[0];
+            game.Pump(true);
+            Assert.That(ring.Body.linearVelocity.magnitude, Is.LessThan(.01f), "Pumping queues water force instead of replacing velocity.");
+            yield return new WaitForFixedUpdate(); yield return new WaitForFixedUpdate();
+            float initialLift = ring.Body.linearVelocity.y;
+            Assert.That(initialLift, Is.GreaterThan(0f));
+            game.Pause(); Vector3 position = ring.Body.position;
+            yield return new WaitForSeconds(.2f);
+            Assert.That(ring.Body.position, Is.EqualTo(position));
+            game.Resume(); yield return new WaitForSeconds(.12f);
+            Assert.That(ring.Body.linearVelocity.y, Is.GreaterThan(initialLift));
+            yield return new WaitForSeconds(.1f);
+            ring.Body.position = new Vector3(-1.8f, 1.8f, -.75f); ring.Body.linearVelocity = Vector3.zero;
+            yield return new WaitForSeconds(.25f);
+            Assert.That(ring.Body.linearVelocity.y, Is.LessThan(0f), "Water drag and weight should bring an unpumped ring back down.");
+        }
+
+        [UnityTest]
+        public IEnumerator RingToRingImpactTransfersMomentum()
+        {
+            game.Progress.Data.Record(game.campaign.levels[0].id).stars = 3; game.StartLevel(1);
+            var first = game.Rings[0]; var second = game.Rings[1];
+            first.Body.position = new Vector3(-1.2f, 2.8f, -.75f);
+            second.Body.position = new Vector3(0, 2.8f, -.75f);
+            first.Body.linearVelocity = Vector3.right * 6f; second.Body.linearVelocity = Vector3.zero;
+            yield return new WaitForSeconds(.2f);
+            Assert.That(second.Body.linearVelocity.x, Is.GreaterThan(.5f));
+            Assert.That(first.Body.position.x, Is.LessThan(second.Body.position.x - .4f), "Rings must not tunnel through each other.");
         }
 
         [UnityTest]
@@ -94,8 +439,14 @@ namespace PocketToys.Tests
             left.OnPointerDown(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current));
             Assert.That(game.Pumps, Is.EqualTo(1));
             game.Pause(); yield return null; Capture("pause");
+            game.OpenHelp(); yield return null; Capture("help"); game.CloseHelp();
+            game.RequestRestart(); yield return null; Capture("confirm-restart");
             game.SetScreen(GameScreen.Levels); yield return null; Capture("levels");
             game.OpenSettings(); yield return null; Capture("settings");
+            game.SetScreen(GameScreen.Controls); yield return null; Capture("controls");
+            game.SetScreen(GameScreen.Complete); yield return null; Capture("complete");
+            game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "VIEW RESULTS & STARS").onClick.Invoke();
+            yield return null; Capture("complete-results");
             game.SetScreen(GameScreen.Collection); yield return null; Capture("collection");
             for (int i = 0; i < 4; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
             game.StartLevel(4); yield return new WaitForSeconds(.1f); Capture("level-05");
@@ -106,17 +457,210 @@ namespace PocketToys.Tests
         [UnityTest]
         public IEnumerator TallPortraitKeepsToyControlsAligned()
         {
-            PlayModeWindow.SetCustomRenderingResolution(360, 800, "Tall portrait");
-            game.StartLevel(0); game.Settings.reduceMotion = true;
-            yield return null; yield return null;
-            Capture("tall-portrait", 360, 800);
-            foreach (var button in game.Hud.GetComponentsInChildren<PumpPress>())
+            foreach (var size in new[] { new Vector2Int(360, 800), new Vector2Int(390, 844), new Vector2Int(375, 667) })
             {
-                var rect = button.GetComponent<RectTransform>();
-                var corners = new Vector3[4]; rect.GetWorldCorners(corners);
-                var screen = game.Presentation.Camera.WorldToScreenPoint(rect.position);
-                Assert.That(screen.x, Is.InRange(0f, 360f)); Assert.That(screen.y, Is.InRange(0f, 800f));
+                PlayModeWindow.SetCustomRenderingResolution((uint)size.x, (uint)size.y, "Phone portrait");
+                ToyPresentation.SafeAreaOverride = new Rect(0, 24, size.x, size.y - 68);
+                game.StartLevel(0); game.Settings.reduceMotion = true;
+                yield return new WaitForSeconds(.2f);
+                Canvas.ForceUpdateCanvases();
+                Capture("phone-" + size.x + "x" + size.y, size.x, size.y);
+                var camera = game.Presentation.Camera;
+                var safe = ToyPresentation.SafeScreenRect;
+                foreach (var button in game.Hud.GetComponentsInChildren<PumpPress>())
+                {
+                    var world = button.name == "Left pump" ? game.Presentation.LeftButton : game.Presentation.RightButton;
+                    Vector2 actual = camera.WorldToScreenPoint(button.transform.position);
+                    Vector2 expected = camera.WorldToScreenPoint(world.position);
+                    Assert.That(Vector2.Distance(actual, expected), Is.LessThan(2f), "Touch targets must align with the physical pumps.");
+                    Assert.IsTrue(safe.Contains(actual));
+                }
+                var settings = game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "Game settings");
+                var corners = new Vector3[4]; settings.GetComponent<RectTransform>().GetWorldCorners(corners);
+                foreach (var corner in corners) Assert.IsTrue(safe.Contains(camera.WorldToScreenPoint(corner)), "Settings must clear the notch and safe edges.");
+                float waterWidth = camera.WorldToScreenPoint(new Vector3(ToyPresentation.TankHalfWidth, 0, 0)).x - camera.WorldToScreenPoint(new Vector3(-ToyPresentation.TankHalfWidth, 0, 0)).x;
+                Assert.That(waterWidth / size.x, Is.GreaterThan(.65f), "Keep a useful arena width on short and tall phones.");
+                float top = camera.WorldToScreenPoint(new Vector3(0, game.Presentation.PlayfieldTop, 0)).y;
+                float bottom = camera.WorldToScreenPoint(new Vector3(0, ToyPresentation.TankBottom, 0)).y;
+                Assert.That((top - bottom) / safe.height, Is.InRange(.48f, .72f), "A bounded arena must leave room for reachable controls without vertical stretching.");
+                Assert.That(waterWidth / (top - bottom), Is.EqualTo(5.6f / 7.2f).Within(.01f), "The water and physics proportions must be identical across phones.");
+                Assert.That(waterWidth / 5.6f * .782f, Is.GreaterThan(34f), "Rings must remain legible on the compact test phone.");
+                foreach (var target in game.Hud.GetComponentsInChildren<RectTransform>().Where(x => x.GetComponent<PumpPress>() || x.GetComponent<Slider>() || x.GetComponent<Button>()))
+                {
+                    target.GetWorldCorners(corners);
+                    var a = camera.WorldToScreenPoint(corners[0]); var b = camera.WorldToScreenPoint(corners[2]);
+                    Assert.That(b.y - a.y, Is.GreaterThanOrEqualTo(43.9f), target.name + " needs a finger-sized hit area.");
+                    foreach (var corner in corners) Assert.IsTrue(safe.Contains(camera.WorldToScreenPoint(corner)), target.name + " must stay in the safe area.");
+                }
+                Assert.That(game.Hud.GetComponentsInChildren<Button>().Length, Is.EqualTo(1), "Gameplay keeps one compact menu button.");
+                settings.onClick.Invoke(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+                var position = game.Rings[0].Body.position; yield return new WaitForSeconds(.1f);
+                Assert.That(game.Rings[0].Body.position, Is.EqualTo(position));
+                Assert.IsTrue(game.Hud.GetComponentsInChildren<Button>().Any(x => x.name == "LEVELS"));
+                game.Resume(); Assert.IsTrue(game.Playing);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator TouchReleasePauseHelpAndRestartDoNotLoseOrStickInput()
+        {
+            game.StartLevel(0);
+            var slider = game.Hud.GetComponentsInChildren<Slider>().Single(); slider.value = 1;
+            yield return new WaitForSeconds(.4f); Assert.That(game.Sensor.Tilt.x, Is.GreaterThan(.5f));
+            var release = slider.GetComponent<CenterOnRelease>();
+            release.OnPointerUp(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current));
+            yield return new WaitForSeconds(.7f); Assert.That(Mathf.Abs(game.Sensor.Tilt.x), Is.LessThan(.05f));
+            slider.value = -1;
+            var pump = game.Hud.GetComponentsInChildren<PumpPress>().First();
+            var pointer = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current) { pointerId = 4 };
+            pump.OnPointerDown(pointer); yield return new WaitForSeconds(.2f);
+            pump.OnPointerDown(pointer); Assert.That(game.Pumps, Is.EqualTo(1), "Holding a finger must not create duplicate presses.");
+            pump.OnPointerUp(pointer); pump.OnPointerDown(pointer); Assert.That(game.Pumps, Is.EqualTo(2));
+            game.Pause(); var position = game.Rings[0].Body.position; var elapsed = game.Elapsed;
+            game.OpenHelp(); yield return new WaitForSeconds(.4f);
+            Assert.That(game.Rings[0].Body.position, Is.EqualTo(position)); Assert.That(game.Elapsed, Is.EqualTo(elapsed));
+            game.CloseHelp(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+            game.RequestRestart(); Assert.That(game.Screen, Is.EqualTo(GameScreen.ConfirmRestart));
+            game.Resume(); yield return new WaitForSeconds(.7f);
+            Assert.That(game.Pumps, Is.EqualTo(2)); Assert.That(Mathf.Abs(game.Sensor.Tilt.x), Is.LessThan(.05f));
+            game.RequestRestart(); game.Restart(); Assert.That(game.Pumps, Is.Zero);
+        }
+
+        [Test]
+        public void RepeatedPumpsHaveBoundedVoicesAndRespectMute()
+        {
+            game.Audio.Configure(true, false, false);
+            for (int i = 0; i < 20; i++) game.Audio.Pump(i % 2 == 0);
+            game.Audio.Catch(1); game.Audio.Success();
+            var voices = game.Audio.GetComponents<AudioSource>();
+            Assert.That(voices.Count(x => x.clip != null && x.clip.name == "Gentle bubble cluster"), Is.EqualTo(2));
+            Assert.IsTrue(voices.Any(x => x.clip != null && x.clip.name == "Completion chord"));
+            game.Audio.Configure(false, false, false); game.Audio.Pump(true);
+            Assert.IsTrue(voices.All(x => !x.isPlaying));
+        }
+
+        [Test]
+        public void PumpUsesGentleBubbleClipWithoutClicksOrClipping()
+        {
+            game.Audio.Configure(true, false, false); game.Audio.Pump(true);
+            var source = game.Audio.GetComponents<AudioSource>().Single(x => x.clip != null && x.clip.name == "Gentle bubble cluster");
+            var data = new float[source.clip.samples]; Assert.IsTrue(source.clip.GetData(data, 0));
+            Assert.That(data.Max(x => Mathf.Abs(x)), Is.InRange(.08f, .35f));
+            Assert.That(Mathf.Abs(data[0]) + Mathf.Abs(data[data.Length - 1]), Is.LessThan(.0001f));
+            Assert.That(source.volume, Is.LessThanOrEqualTo(.6f));
+            for (int i = 1; i < data.Length; i++) Assert.That(Mathf.Abs(data[i] - data[i - 1]), Is.LessThan(.08f));
+            Directory.CreateDirectory("Logs/Previews");
+            using (var writer = new BinaryWriter(File.Create("Logs/Previews/gentle-bubbles.wav")))
+            {
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); writer.Write(36 + data.Length * 2);
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt ")); writer.Write(16); writer.Write((short)1); writer.Write((short)1);
+                writer.Write(source.clip.frequency); writer.Write(source.clip.frequency * 2); writer.Write((short)2); writer.Write((short)16);
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("data")); writer.Write(data.Length * 2);
+                foreach (float sample in data) writer.Write((short)(sample * source.volume * short.MaxValue));
+            }
+        }
+
+        void UnlockTo(int index)
+        {
+            for (int i = 0; i < index; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+        }
+
+        void SetElapsed(float seconds) => typeof(GameSession).GetProperty(nameof(GameSession.Elapsed)).SetValue(game, seconds);
+
+        [UnityTest]
+        public IEnumerator ExpansionLoadsEveryLevelAndShowsPausedTips()
+        {
+            UnlockTo(14); game.Settings.reduceMotion = true;
+            foreach (int index in Enumerable.Range(5, 10))
+            {
+                game.StartLevel(index); yield return new WaitForSeconds(.15f);
+                Assert.IsTrue(game.Playing); Assert.That(game.Rings.Count, Is.EqualTo(game.Level.rings.Length));
+                Assert.IsTrue(game.Rings.All(r => r.Body.position.x >= -2.8f && r.Body.position.x <= 2.8f));
+                Assert.IsFalse(ShaderUtil.ShaderHasError(Shader.Find("PocketToys/LagoonWater")));
+                Capture("expansion-" + (index + 1).ToString("00"));
+                game.Pause(); float elapsed = game.Elapsed;
+                game.OpenHelp();
+                game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "LEVEL TIP").onClick.Invoke();
+                yield return new WaitForSeconds(.1f);
+                Assert.That(game.Elapsed, Is.EqualTo(elapsed));
+                Assert.IsTrue(game.Hud.GetComponentsInChildren<Text>().Any(x => x.text == game.Level.hint));
+                if (index == 12) Capture("thermal-level-tip");
+                game.CloseHelp(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator IceExpiryPauseRetryAndFinalCatchRespectTheDeadline()
+        {
+            UnlockTo(7); game.StartLevel(7);
+            SetElapsed(59f); game.Pause();
+            yield return new WaitForSeconds(.1f); Assert.That(game.Elapsed, Is.EqualTo(59f));
+            game.Resume(); SetElapsed(60f);
+            yield return null; yield return null;
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Frozen));
+            Assert.That(game.Progress.Data.Record(game.Level.id).stars, Is.Zero);
+            Assert.That(game.Progress.Data.Record("water_01").stars, Is.EqualTo(3));
+            int pumps = game.Pumps; game.Pump(true); game.Resume();
+            Assert.That(game.Pumps, Is.EqualTo(pumps)); Assert.That(game.Screen, Is.EqualTo(GameScreen.Frozen));
+            yield return new WaitForSeconds(.2f); // Capture after the screen transition finishes.
+            Capture("ice-expired"); game.Restart(); Assert.That(game.Elapsed, Is.Zero);
+            Assert.IsTrue(game.Rings.All(r => !r.Captured));
+            // Inject completed catch events at the boundary to isolate update ordering;
+            // separate physical landing regressions verify how those events are earned.
+            SetElapsed(59.999f);
+            foreach (var ring in game.Rings) game.OnRingCaptured(ring);
+            yield return new WaitForSeconds(.4f);
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete));
+            Assert.That(game.Elapsed, Is.EqualTo(59.999f));
+            Assert.That(game.Progress.Data.Record(game.Level.id).stars, Is.GreaterThan(0));
+        }
+
+        [UnityTest]
+        public IEnumerator MiniRingsPhysicallyCollectUntilQuotaWithoutLastRingHunt()
+        {
+            UnlockTo(6); game.StartLevel(6); Time.timeScale = 3;
+            for (int i = 0; i < game.TargetCount; i++)
+            {
+                int trayIndex = i % 2;
+                var tray = game.Level.collectors[trayIndex]; var ring = game.Rings[i];
+                float x = tray.center.x + (i / 2 % 2 == 0 ? -.29f : .29f);
+                ring.Body.position = new Vector3(x, tray.center.y + tray.height * .5f + .45f, -.75f);
+                ring.Body.linearVelocity = Vector3.zero;
+                for (int step = 0; step < 250 && !ring.Captured; step++) yield return new WaitForFixedUpdate();
+                Assert.IsTrue(ring.Captured, "Dropped mini ring must settle and count: " + i);
+                Assert.That(ring.CollectorIndex, Is.EqualTo(trayIndex));
+                var locked = ring.Body.position; ring.Nudge(new Vector2(5, 5));
+                yield return new WaitForFixedUpdate(); Assert.That(ring.Body.position, Is.EqualTo(locked));
+            }
+            yield return new WaitForSeconds(.4f);
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete)); Assert.That(game.Caught, Is.EqualTo(6));
+            Assert.That(game.Rings.Count(r => !r.Captured), Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator CurrentsAndFishPauseRestartAndExposeTheirCues()
+        {
+            UnlockTo(13); game.StartLevel(12); SetElapsed(2f); yield return null;
+            var zone = game.Level.currents[0];
+            Assert.That(game.Environment.AccelerationAt(zone.center).y, Is.GreaterThan(5));
+            Assert.That(game.Environment.AccelerationAt(new Vector2(2.6f, 3.7f)), Is.EqualTo(Vector2.zero));
+            Capture("thermal-active"); game.Pause(); float elapsed = game.Elapsed;
+            yield return new WaitForSeconds(.1f);
+            Assert.That(game.Elapsed, Is.EqualTo(elapsed)); Assert.That(game.Environment.AccelerationAt(zone.center), Is.EqualTo(Vector2.zero));
+            game.Restart(); Assert.That(zone.StateAt(game.Elapsed), Is.EqualTo(CurrentState.Warning));
+            game.StartLevel(13); Time.timeScale = 5;
+            for (int step = 0; step < 200 && !game.Environment.FishWarning; step++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(game.Environment.FishWarning);
+            var firstRoute = game.Environment.FishPosition; int firstDirection = game.Environment.FishDirection;
+            game.Pause(); yield return new WaitForSeconds(.2f);
+            Assert.That(game.Environment.FishPosition, Is.EqualTo(firstRoute)); Assert.IsTrue(game.Environment.FishWarning);
+            game.Restart();
+            for (int step = 0; step < 200 && !game.Environment.FishWarning; step++) yield return new WaitForFixedUpdate();
+            Assert.That(game.Environment.FishPosition, Is.EqualTo(firstRoute)); Assert.That(game.Environment.FishDirection, Is.EqualTo(firstDirection));
+            for (int step = 0; step < 200 && !game.Environment.FishActive; step++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(game.Environment.FishActive);
+            for (int step = 0; step < 150 && Mathf.Abs(game.Environment.FishPosition.x) > 2; step++) yield return new WaitForFixedUpdate();
+            Capture("fish-crossing");
         }
 
         void Capture(string name, int width = 720, int height = 1280)
@@ -131,7 +675,7 @@ namespace PocketToys.Tests
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0); texture.Apply();
                 Directory.CreateDirectory("Logs/Previews"); File.WriteAllBytes("Logs/Previews/" + name + ".png", texture.EncodeToPNG());
             }
-            finally { camera.targetTexture = old; RenderTexture.active = active; Object.Destroy(target); Object.Destroy(texture); }
+            finally { camera.targetTexture = old; camera.ResetAspect(); RenderTexture.active = active; Object.Destroy(target); Object.Destroy(texture); }
         }
     }
 }

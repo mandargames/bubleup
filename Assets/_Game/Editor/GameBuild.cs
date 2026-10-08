@@ -38,7 +38,9 @@ namespace PocketToys.Editor
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             PlayerSettings.productName = "Pocket Toys"; PlayerSettings.companyName = "Pocket Toys Local";
-            PlayerSettings.bundleVersion = "0.2.0";
+            PlayerSettings.bundleVersion = "0.3.0";
+            PlayerSettings.iOS.buildNumber = "6";
+            PlayerSettings.Android.bundleVersionCode = 6;
             PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { GameIcon.Create() }, IconKind.Any);
             PlayerSettings.defaultScreenWidth = 600; PlayerSettings.defaultScreenHeight = 1000;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
@@ -50,7 +52,7 @@ namespace PocketToys.Editor
             QualitySettings.vSyncCount = 0;
             QualitySettings.antiAliasing = 4;
             AssetDatabase.SaveAssets();
-            Debug.Log("Integrated game ready: five authored levels and local progression.");
+            Debug.Log("Integrated game ready: " + campaign.levels.Length + " authored levels and local progression.");
         }
         static Material Material(string name, string shader)
         {
@@ -64,17 +66,17 @@ namespace PocketToys.Editor
             => new PegDefinition { tip = new Vector2(x, y), length = length, capacity = capacity, movement = movement };
 
         // One-time authoring recipe. Existing campaign assets are never overwritten by Setup.
-        static LevelDefinition[] InitialContent() => new[]
+        static LevelDefinition[] InitialContent() => AdventureExpansion.AppendTo(new[]
         {
             new LevelDefinition {
                 id="water_01", title="First Splash", chapter="FIRST SPLASH", lesson="One ring. Find the rhythm.",
-                hint="Lift above the peg, then ease into the landing.",
+                hint="Lift beside the peg, then steer over its tip.",
                 rings=new[]{new Vector2(-1.1f,-1.85f)}, pegs=new[]{Peg(0f,.9f,1.4f,1)},
                 goldSeconds=22f, silverSeconds=50f, goldPumps=8
             },
             new LevelDefinition {
                 id="water_02", title="Double Dip", chapter="FIND THE BALANCE", lesson="Two rings, one satisfying stack.",
-                hint="Caught rings stay put. Guide the next one home.",
+                hint="Landed rings lock in place. Stack the next one on top.",
                 rings=new[]{new Vector2(-1.25f,-1.85f),new Vector2(1.25f,-1.85f)}, pegs=new[]{Peg(0f,1.15f,1.65f,2)},
                 goldSeconds=36f, silverSeconds=70f, goldPumps=15, starsRequired=1
             },
@@ -100,7 +102,7 @@ namespace PocketToys.Editor
                 pegs=new[]{Peg(-1.45f,.9f,1.4f,1),Peg(0f,1.75f,1.5f,2,.28f),Peg(1.45f,.9f,1.4f,1)},
                 goldSeconds=80f,silverSeconds=140f,goldPumps=38,starsRequired=4
             }
-        };
+        });
 
         [MenuItem("Pocket Toys/Build integrated Windows game")]
         public static void Windows()
@@ -113,11 +115,12 @@ namespace PocketToys.Editor
         [MenuItem("Pocket Toys/Build local Android APK")]
         public static void Android()
         {
-            Setup(); Directory.CreateDirectory("Builds/Android");
+            Setup(); string output = "Builds/Android-" + PlayerSettings.bundleVersion;
+            Directory.CreateDirectory(output);
             PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             EditorUserBuildSettings.buildAppBundle = false;
-            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Builds/Android/PocketToys.apk", target = BuildTarget.Android, options = BuildOptions.Development });
+            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = output + "/PocketToys-" + PlayerSettings.bundleVersion + ".apk", target = BuildTarget.Android, options = BuildOptions.Development });
             if (result.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) throw new Exception("Android build failed.");
         }
     }

@@ -1,0 +1,26 @@
+# Coral Club visual refresh
+
+The integrated game uses a miniature coral lagoon inside a mint enamel water toy. Warm coral and mango controls, champagne trim, rounded cabinet corners, glass reflections, drifting bubbles and a dark teal atmospheric backdrop establish the palette. The home screen displays a smaller collectible toy with decorative floating rings; gameplay rings share their orientation with hollow physical colliders. Peg positions and controls follow the authored campaign.
+
+## Art and typography
+
+- `Assets/_Game/Art/Resources/CoralLagoon.png`: original generated aquarium artwork, created with the built-in ImageGen tool. The illustration is sampled by `LagoonWater.shader`, with subtle UV refraction and animated caustics. Keep the central water clear enough to read gameplay silhouettes.
+- `Assets/_Game/Art/Resources/OceanBackdrop.shader`: procedural gradient, slow wave ribbons and restrained grain. No external render pipeline or post-processing package is required.
+- Lilita One headings and Lato interface text are bundled from the Google Fonts repository. Their SIL Open Font License files are in `Assets/_Game/Art/Fonts`.
+- All runtime-loaded artwork, fonts and the backdrop shader live in Resources so they are included in standalone builds. Runtime-created meshes and materials are disposed by the presentation.
+
+Reduced motion freezes refraction, background waves and ambient bubble drift, and keeps the existing reduced-effects behavior. Showcase rings are decorative and appear only on Home.
+
+## Baseline implementation, October 2026
+
+The active arena is bounded and preserves its proportions: 5.6 units wide by 7.2 high. The camera fits the complete toy and touch-steering space below a safe-area header, without stretching the water, enclosure or collision ceiling. This makes rings larger relative to the available width while keeping authored peg positions. The level name, landed-ring count and contextual instruction sit outside the water. One compact settings icon opens a paused menu with help, comfort settings and restart confirmation.
+
+Completion emphasizes finishing. Stars and performance targets are an optional detail view. Settings have separate comfort and controls/calibration screens so controls can remain large. The touch steering rail has an 88-reference-pixel hit area despite its thinner visual track. See [the implementation record](Research/IMPLEMENTATION.md) for decisions, limitations and the physical-phone review procedure.
+
+## Artwork generation prompt
+
+Use case: stylized-concept. Asset type: production background texture inside a water ring toss game's glass aquarium. Create a stunning polished miniature underwater coral lagoon illustration, portrait 4:5 composition. Luminous clear turquoise water at top, deep teal blue at bottom, beautiful sunbeams entering from upper left, softly rippling caustic light. A charming sculptural coral garden hugs ONLY the bottom 18 percent and outer left/right 12 percent: peach and pink branching coral, rounded apricot sea anemones, lavender fan coral, seafoam seaweed, tiny smooth cream pebbles and a little golden starfish bottom right, layered with subtle atmospheric depth. The central 70 percent is OPEN QUIET WATER with restrained detail and smooth blue teal gradients, for brightly coloured interactive rings and pegs to be rendered in front. Art direction: premium cozy casual game, tactile clay-like 3D illustration, beautiful rounded organic forms, clean silhouettes, soft subsurface scattering, inviting tropical light, exquisite color harmony. Straight-on front view, no perspective frame, no aquarium borders, no UI, no text, no letters, no rings, no pegs, no fish, no logos, no watermark. Full bleed rectangular art.
+
+## Visual checks
+
+`Tools/Run-Checks.ps1` runs the existing EditMode and PlayMode suites. The PlayMode journey captures Home, gameplay, all menus and a 360 × 800 tall portrait to `Logs/Previews`. Review these images after presentation changes. The Windows build can also run the isolated `-pocketToysAudit` documented in the root README.

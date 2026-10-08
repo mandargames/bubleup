@@ -1,4 +1,117 @@
+## 2026-10-08 - Version 0.3.0 build and validation pass
+
+- Prepared version 0.3.0, iPhone build 6 and Android version code 6 while preserving the existing app identifiers. Android output now goes to its own versioned folder.
+- Passed 19 EditMode and 33 PlayMode checks. Added campaign/recipe agreement, current bounds/timing, expansion startup/help, collector quota, deadline ordering, freeze retry/progress and fish pause/restart coverage. The existing control-only pilot completed the original five levels again; the ten new levels still need full playthroughs and human tuning.
+- Reviewed representative expansion renders and the freeze screen after its transition; its focused regression passed again. No runtime repair was required during this build pass.
+- Built and verified the Android ARM64 IL2CPP APK and unsigned physical-iPhone IPA. The APK signature matches the prior local Android package. The IPA app and UnityFramework are ARM64/iOS device binaries, version 0.3.0/build 6. Both packages contain all fifteen level IDs. Docs/Research/BUILD_0_3_0.md records the artifact link, checksums and remaining device verification.
+
+## 2026-10-08 - Four follow-on stages, fifteen total source prototypes
+
+- Added Frost Crossing (mixed weights, low baffle, 75-second freeze deadline), Thermal Staircase (staggered lift zones), Passing Window (moving peg and a warned fish route), and Quiet Shoal (four-of-six mini collection through a steady sideways current).
+- Added bounded, editable currents with an edge fade, direction, steady flow or warning/active/rest cycles. The water shader draws matching bounds and direction cues; reduced motion preserves their static meaning. Explicit zones replace the default nozzle currents when present.
+- Kept environment timing tied to the paused attempt clock and retained protected catches, restart behavior and saved level IDs. Added a paused Level tip page so authored hints and environmental rules are available in the game.
+- Extended the serialized campaign and initial-content recipe together; updated the existing content-count assertion to fifteen. Updated the Markdown design and deferred-verification record.
+- Source review and C# syntax parsing only. Unity compilation, shader rendering, automated/gameplay tests and packages remain deferred; no new mobile build was produced.
+
+## 2026-10-08 - Unreleased eleven-stage expansion prototypes
+
+- Added consistent light/standard/heavy profiles and smaller agile rings, with colours, visible weight marks and explicit lift/settling/steering response. The original five layouts retain standard behaviour.
+- Authored six additional lessons: Feather and Pebble, Bubble Garden, First Frost, Lava Lift, Passing Company and Reef Rhythm. Added tray collection with a six-of-eight goal and a paged level menu.
+- Implemented the owner's chosen ice rule: finish before a 60-second freeze deadline or the attempt ends. Pause/background stops the timer; retry preserves earned progress. Added frost status and a dedicated failure screen.
+- Added alternating warned thermal lift, procedural ice/basalt backgrounds and fish crossings with visible entry cues, varied seeded routes and one gentle nudge per loose ring per pass. Locked rings remain protected.
+- Coalesced closely grouped landing sounds. Updated fresh-project content authoring and made the original-five audit's limited scope explicit.
+- Builds, Unity compilation, rendering and gameplay tests deferred at the owner's request. C# syntax parsing and source review only; previous passing checks do not validate this expansion. Docs/Research/NEXT_LEVELS.md records tuning, next concepts and pending verification.
+
+## 2026-10-08 - Unreleased ring landing and shape repair
+
+- Reproduced a valid off-centre shelf landing that never scored. Replaced the narrow one-step tip-crossing test with recognition of the shaft inside the physical opening, retaining support, settling, height and capacity requirements.
+- Replaced inflated-looking torus rings with flat molded bands, larger openings, small edge bevels and softer highlights. Thin rounded compound contacts replace the old thick collision tube; the outside diameter stays essentially unchanged.
+- Added regressions for off-centre landings, full-peg limits and recovery from side contact with a locked ring. Updated the optional QA controller to plan around occupied rims without changing player controls or moving bodies directly.
+- Validation: 17 EditMode and 29 PlayMode tests passed, including all five levels through pump/steering controls. Reviewed tall and short phone previews. No new mobile package or physical-device verification in this repair session.
+- Added Docs/Research/RING_DESIGN.md with before/after renders, proposed colour/weight identities and agile mini-ring group levels. Those new mechanics remain designs for prototyping.
+
+## 2026-10-08 - Research baseline implementation (0.2.4, build 5)
+
+- Replaced the stretched tall-phone tank with a bounded, proportionally framed arena. Narrower casing keeps rings prominent; the header and touch targets clear the simulated safe areas.
+- Added contextual first-level guidance, revisitable help, finger-sized targets, touch release/disable cleanup, and restart confirmation. Separated controls/calibration from comfort settings.
+- Made completion the primary reward. Time, pump counts and stars remain available in optional results; existing progress, bests, cosmetics and saved preferences remain compatible.
+- Softened pump audio with short low bubble resonances and capped simultaneous pump voices. Haptic events coalesce by importance; softer native iPhone impacts replace medium landing impacts.
+- Fixed a scoring deadlock when a physically supported ring sat higher in an offset stack than the old acceptance range allowed. Support, settling, threading and capacity checks remain required.
+- Validation: 17 EditMode and 26 PlayMode checks passed, including all five levels through public controls, offset stacks, release/pause/help/restart, mute, waveform bounds and three phone proportions. Reviewed rendered menus and gameplay. Physical iPhone feel remains unverified for this candidate.
+- Markdown research and implementation records are in Docs/Research; build and device status are tracked in Docs/Research/IMPLEMENTATION.md.
+
+## 2026-10-08 - Full-screen phone gameplay and gentle bubbles (0.2.3, build 4)
+
+- Replaced the large gameplay branding/header and bottom menu row with a compact level title and top-right settings control. The control pauses play and exposes restart, levels, settings and home. Its touch area is larger than its visible icon.
+- Framed the toy to phone width and expanded the visible water, enclosure and real collision boundaries vertically into the safe screen area. Boundary transforms update only when the layout or level changes. Pump hit targets follow the rendered controls; tilt-enabled devices hide the unused touch slider.
+- Replaced the noisy pump hiss/thump with a quieter four-bubble resonant cluster, soft onset/release and slight pitch variation.
+- Validation: 16 EditMode and 23 PlayMode checks passed, including all five levels, corner containment, pause controls and bubble waveform limits. Reviewed 360x800, 390x844 and 375x667 previews with simulated safe-area margins. Both focused preview/layout checks passed after correcting screenshot aspect restoration.
+- iPhone compilation and physical-device validation are recorded separately with the release artifact.
+
+## 2026-10-08 - iPhone background startup repair
+
+- Replaced the decorative background's CreatePrimitive(Quad) with a render-only mesh. The 0.2.1 iPhone export strips MeshCollider, but the old helper dereferenced that collider before assigning the backdrop material and completing startup.
+- Added background material/winding and successful HUD startup coverage. All 16 EditMode and 22 PlayMode tests passed, including the five-level playthrough. Home preview reviewed.
+- The isolated cloud build uses version 0.2.2 (3), commit b68ce1d263a353741aa169f95c8890aacaf4052d. Physical-iPhone launch remains unverified.
+
+## 2026-10-08 — iPhone build 0.2.1 (2)
+
+- Prepared the current local game changes for a new physical-iPhone build: Coral Club artwork, larger tank, compact peg supports, hollow ring collisions, gentler controls, and rings that lock after landing.
+- Bumped the app version to 0.2.1 and iPhone build number to 2, retaining `com.pockettoys.water` for updating the existing AltStore installation.
+- Reused the existing unsigned ARM64 iPhone cloud workflow. The IPA still requires personal signing through AltStore; no Apple credentials or store submission are involved.
+- Validation before cloud compilation: 16 EditMode and 21 PlayMode tests passed in the isolated build checkout, including all five levels completed through pump and steering input. New-build device launch remains unverified.
+
 # Development changelog
+
+## 2026-10-08 — Vertical pumps and a roomier tank
+
+- Removed the fixed inward impulse from red/yellow pumps. Jets now lift vertically while steering controls horizontal travel, preserving existing momentum and the gentler steering response.
+- Expanded the chamber from about 5.2 × 6.13 to 6.8 × 7.2 units. Updated physical walls, cabinet, water, glass, camera framing and HUD placement together; rings and pegs retain their size and authored layout.
+- Moved both nozzles and pump buttons farther apart, widened jet coverage to lift rings in the outer lanes, and aligned particle effects with the vertical jets. Landed rings still lock permanently.
+- Added regressions for each pump's lateral drift and steering/pumping into and back out of both upper corners.
+- Validation: all 21 PlayMode checks passed, including all five levels and the new pump/corner regressions (`Logs/RoomierTank-results.xml`). Reviewed standard and tall portrait previews, corrected the Home subtitle spacing, and passed the focused preview check. Windows rebuild succeeded (`Logs/RoomierTank-build.log`); mobile packages were not rebuilt.
+
+## 2026-10-08 — More room beside the pegs
+
+- Shortened peg landing bars from 0.95 to 0.58 units (39%) in both the visible mesh and collider, opening wider upward routes beside each peg. Kept solid peg and support contact, permanent landing locks, and the gentler controls.
+- Adjusted the automated pilot's clearance estimate to the new support size and added a physics regression for rising past both ends of a support. The separate level-four baffle remains unchanged.
+- Validation: all 19 PlayMode checks passed, including the five-level control playthrough, side clearance, solid support contact, stacking and permanent locks (`Logs/CompactSupports-results.xml`). Reviewed the updated gameplay preview and rebuilt Windows successfully (`Logs/CompactSupports-build.log`). Mobile packages were not rebuilt.
+
+## 2026-10-08 — Lock landed rings, retain gentler controls
+
+- Following the clarified gameplay preference, a ring locks permanently once it physically lands and settles on a peg. Pumps and steering cannot remove it; pause/resume preserves the lock, and restarting clears the attempt.
+- Locked rings retain solid colliders for stacking and follow moving pegs from their resting offset. Rings remain dynamic before landing. The gentler steering, smoothing and pump response are unchanged.
+- Replaced the release regression with repeated-pump, steering, pause/resume and restart checks, added moving-peg lock coverage, and updated the in-game hint and documentation.
+- Validation: all 18 PlayMode checks passed, including completing all five levels through public controls (`Logs/LockedRings-results.xml`). Windows rebuild succeeded (`Logs/LockedRings-build.log`); mobile packages were not rebuilt.
+
+## 2026-10-08 — Gentler controls and removable rings
+
+- Removed the permanent seated-ring physics lock and pump rejection. Rings remain dynamic during play, can lift off their peg and settle again, and release their counted slot when fully removed.
+- Restored a stable ring angle to prevent a sideways torus wedging against a peg in the constrained play plane. Kept hollow ring, peg and shelf collisions.
+- Reduced steering acceleration from 5.5 to 4 and lateral pump force by 25%; spread each water pulse over 0.22 seconds instead of 0.16. Threaded rings receive gentler jets, so a tap nudges them while repeated pumps can remove them.
+- The existing sensitivity setting now applies to keyboard and slider controls too, without changing saved preference values. Input smoothing is slightly gentler.
+- Added regression checks for lifting a seated ring completely free, returning it without duplicate scoring, pausing seated rings, and changing sensitivity with virtual input. Updated the second-level hint and physics documentation.
+- Validation: 16 EditMode checks and 16 of 17 PlayMode checks passed, including all focused collision, release, scoring, pause and sensitivity regressions. The full-game control pilot timed out on Side by Side while repeatedly lifting a crowded stack; the latest tuning does not have a clean five-level automated playthrough. Windows build succeeded (`Logs/GentleControls-build.log`). Android/iOS packages were not rebuilt.
+
+## 2026-10-08 — Ring contact and weight correction
+
+- Replaced the filled capsule collision proxy with sixteen convex capsule segments matching the visible torus and its actual rigid-body orientation.
+- Added solid peg stems and landing shelves; the moving peg now moves a kinematic rigid body on physics steps. Baffle collision depth matches its visible geometry.
+- Pumps apply a short water-jet impulse over multiple steps instead of replacing velocity. Rings retain gravity minus buoyancy, water drag, low-friction contacts and physical roll throughout their movement.
+- Crossing a peg tip marks a ring as threaded but keeps it dynamic. A catch scores only after supported contact near the shelf/stack and a short settling period. Caught rings keep their colliders and support subsequent rings without a scripted slide or teleport.
+- Added regression checks for side impacts below the peg tip, impacts from below a shelf, dynamic threading and stacking, ring-to-ring momentum transfer, and pump/pause/settling behavior. All 16 EditMode and 15 PlayMode checks passed, including completing all five levels with public pump/tilt controls.
+- Updated the QA pilot to lift beside solid shelves and stop pumping during a landing, and clarified the first-level hint.
+- Rebuilt the Windows game and verified all five levels in the packaged player. `Logs/RingPhysicsAudit/report.json` reports no errors over 8,602 gameplay frames (16.68 ms average on the local desktop GPU). Mobile packages have not been rebuilt in this correction.
+
+## 2026-10-08 — Coral Club visual refresh
+
+- Added original generated coral-lagoon art inside the playable aquarium, with animated refraction, light caustics and ambient bubble outlines.
+- Rebuilt the cabinet silhouette with rolled rounded corners, a mint enamel finish, brighter warm/cool lighting, champagne trim and a detailed pump console.
+- Redesigned Home around a collectible toy display with floating showcase rings, new typography, warm raised buttons, framed cards and a procedural ocean backdrop.
+- Added readable gameplay counter capsules, adventure number badges and miniature toy previews for collectible shells. Preserved the existing five-level gameplay, saves and input behavior.
+- Bundled Lilita One and Lato with their font licenses; recorded the artwork prompt and asset provenance in `Docs/VISUAL_DESIGN.md`.
+- Validation: 16 EditMode and 10 PlayMode checks passed. Reviewed 720 × 1280 and 360 × 800 previews; the packaged Windows audit completed all five levels at 600 × 1000 without errors (16.74 ms average frame interval on the local desktop GPU). Final UI adjustments were checked by the focused rendered-preview test.
+- Rebuilt `Builds/Windows/PocketToys.exe`. Android/iOS packages and real-device performance have not been revalidated in this visual pass.
 
 ## 2026-10-07 — GitHub source setup
 

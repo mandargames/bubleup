@@ -5,6 +5,61 @@ namespace PocketToys.WaterRingToss.Game
 {
     public static class ToyGeometry
     {
+        public static Mesh BackdropQuad()
+        {
+            var mesh = new Mesh { name = "Ocean backdrop quad" };
+            mesh.vertices = new[] { new Vector3(-.5f, -.5f, 0), new Vector3(.5f, -.5f, 0), new Vector3(-.5f, .5f, 0), new Vector3(.5f, .5f, 0) };
+            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        // Rounded rectangular extrusion with a rolled bevel, independent of its depth.
+        public static Mesh MoldedPanel(Vector3 size, float radius)
+        {
+            const int arc = 12, layers = 9;
+            const int perimeter = 4 * (arc + 1);
+            float bevel = Mathf.Min(.14f, size.z * .35f);
+            var vertices = new List<Vector3>(); var uv = new List<Vector2>(); var triangles = new List<int>();
+            for (int layer = 0; layer < layers; layer++)
+            {
+                float angle = Mathf.PI * layer / (layers - 1);
+                float inset = bevel * (1 - Mathf.Sin(angle));
+                float z = Mathf.Cos(angle) * size.z * .5f;
+                float r = Mathf.Max(.02f, radius - inset);
+                for (int corner = 0; corner < 4; corner++)
+                for (int step = 0; step <= arc; step++)
+                {
+                    float a = (corner * 90f + step * 90f / arc) * Mathf.Deg2Rad;
+                    float cx = (corner == 0 || corner == 3 ? 1 : -1) * (size.x * .5f - radius);
+                    float cy = (corner < 2 ? 1 : -1) * (size.y * .5f - radius);
+                    var p = new Vector3(cx + Mathf.Cos(a) * r, cy + Mathf.Sin(a) * r, z);
+                    vertices.Add(p); uv.Add(new Vector2(p.x / size.x + .5f, p.y / size.y + .5f));
+                }
+            }
+            for (int layer = 0; layer < layers - 1; layer++)
+            for (int p = 0; p < perimeter; p++)
+            {
+                int a = layer * perimeter + p, b = layer * perimeter + (p + 1) % perimeter;
+                triangles.Add(a); triangles.Add(a + perimeter); triangles.Add(b);
+                triangles.Add(b); triangles.Add(a + perimeter); triangles.Add(b + perimeter);
+            }
+            for (int face = 0; face < 2; face++)
+            {
+                int center = vertices.Count, start = face == 0 ? 0 : (layers - 1) * perimeter;
+                vertices.Add(new Vector3(0, 0, (face == 0 ? 1 : -1) * size.z * .5f)); uv.Add(Vector2.one * .5f);
+                for (int p = 0; p < perimeter; p++)
+                {
+                    triangles.Add(center);
+                    triangles.Add(start + (face == 0 ? p : (p + 1) % perimeter));
+                    triangles.Add(start + (face == 0 ? (p + 1) % perimeter : p));
+                }
+            }
+            var mesh = new Mesh { name = "Rolled enamel panel" };
+            mesh.SetVertices(vertices); mesh.SetUVs(0, uv); mesh.SetTriangles(triangles, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
+        }
+
         public static Mesh RoundedBox(Vector3 size, float radius)
         {
             const int steps = 16;
@@ -65,6 +120,34 @@ namespace PocketToys.WaterRingToss.Game
             }
             var mesh = new Mesh { name = "Soft molded disc", vertices = vertices, triangles = indices.ToArray() };
             mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
+        }
+
+        // An injection-molded annulus: flat faces and walls with a small rolled edge.
+        public static Mesh MoldedRing(float innerRadius, float outerRadius, float depth, float bevel)
+        {
+            const int segments = 64, arcSteps = 4, sides = 4 * (arcSteps + 1);
+            bevel = Mathf.Min(bevel, Mathf.Min(depth, outerRadius - innerRadius) * .49f);
+            float radius = (outerRadius + innerRadius) * .5f, halfWidth = (outerRadius - innerRadius) * .5f;
+            var vertices = new Vector3[(segments + 1) * (sides + 1)];
+            var normals = new Vector3[vertices.Length]; var uv = new Vector2[vertices.Length];
+            var triangles = new int[segments * sides * 6]; int index = 0;
+            for (int i = 0; i <= segments; i++)
+            for (int j = 0; j <= sides; j++)
+            {
+                int profile = j % sides, corner = profile / (arcSteps + 1), step = profile % (arcSteps + 1);
+                float a = i * Mathf.PI * 2f / segments, b = (corner * 90f + step * 90f / arcSteps) * Mathf.Deg2Rad;
+                float r = radius + (corner == 0 || corner == 3 ? 1f : -1f) * (halfWidth - bevel) + Mathf.Cos(b) * bevel;
+                float z = (corner < 2 ? 1f : -1f) * (depth * .5f - bevel) + Mathf.Sin(b) * bevel;
+                int n = i * (sides + 1) + j;
+                vertices[n] = new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, z);
+                normals[n] = new Vector3(Mathf.Cos(a) * Mathf.Cos(b), Mathf.Sin(a) * Mathf.Cos(b), Mathf.Sin(b));
+                uv[n] = new Vector2((float)i / segments, (float)j / sides);
+                if (i == segments || j == sides) continue;
+                triangles[index++] = n; triangles[index++] = n + sides + 1; triangles[index++] = n + 1;
+                triangles[index++] = n + 1; triangles[index++] = n + sides + 1; triangles[index++] = n + sides + 2;
+            }
+            var mesh = new Mesh { name = "Flat molded ring", vertices = vertices, normals = normals, uv = uv, triangles = triangles };
+            mesh.RecalculateBounds(); return mesh;
         }
 
         public static Mesh Torus(float radius, float tube)

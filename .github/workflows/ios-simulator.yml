@@ -1,0 +1,144 @@
+name: iOS Simulator cloud build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    name: Export Unity iOS Simulator project
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check Unity activation prerequisites
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$UNITY_EMAIL" || -z "$UNITY_PASSWORD" ]]; then
+            echo '::error::Configure UNITY_EMAIL and UNITY_PASSWORD in repository Actions secrets. Do not put credentials in source files or chat.'
+            exit 1
+          fi
+          if [[ -z "$UNITY_LICENSE" && -z "$UNITY_SERIAL" ]]; then
+            echo '::error::Unity activation is required: configure UNITY_LICENSE for Personal, or UNITY_SERIAL for an eligible paid license. See https://game.ci/docs/github/activation/ . No Apple account is required for this simulator workflow.'
+            exit 1
+          fi
+          if [[ -n "$UNITY_LICENSE" && -n "$UNITY_SERIAL" ]]; then
+            echo '::error::Configure one Unity activation method, UNITY_LICENSE or UNITY_SERIAL, rather than both.'
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Export Xcode project with Unity 6000.3.9f1
+        uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4 (verified tag commit)
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: 6000.3.9f1
+          targetPlatform: iOS
+          buildMethod: PocketToys.CI.IOSSimulatorBuild.Build
+          buildsPath: build
+          buildName: iOS
+          versioning: None
+          dockerWorkspacePath: /tmp/bubleup-unity
+      - name: Package Xcode project preserving executable permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d build/iOS/Unity-iPhone.xcodeproj
+          tar -czf ios-simulator-xcode.tar.gz -C build iOS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-simulator-xcode
+          path: ios-simulator-xcode.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  compile:
+    name: Compile unsigned simulator app with Xcode
+    needs: export
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ios-simulator-xcode
+          path: incoming
+      - name: Restore export at its original absolute path
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bubleup-unity/build
+          tar -xzf incoming/ios-simulator-xcode.tar.gz -C /tmp/bubleup-unity/build
+          xcodebuild -version
+          xcodebuild -showsdks
+          echo "Runner architecture: $(uname -m)"
+      - name: Build for iOS Simulator without Apple signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          project=/tmp/bubleup-unity/build/iOS
+          xcodebuild \
+            -project "$project/Unity-iPhone.xcodeproj" \
+            -scheme Unity-iPhone \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/ios-simulator-derived" \
+            "ARCHS=$(uname -m)" \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM= \
+            build 2>&1 | tee xcodebuild.log
+      - name: Package simulator app
+        shell: bash
+        run: |
+          set -euo pipefail
+          products="$RUNNER_TEMP/ios-simulator-derived/Build/Products/Release-iphonesimulator"
+          app=$(find "$products" -maxdepth 1 -type d -name '*.app' -print -quit)
+          if [[ -z "$app" ]]; then
+            echo '::error::Xcode did not produce a simulator .app.'
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$app" "PocketToys-ios-simulator-$(uname -m).zip"
+          {
+            echo '### Simulator compile completed'
+            echo "- Architecture: $(uname -m)"
+            echo '- Download the simulator app artifact from this run.'
+            echo '- This is an unsigned simulator build, not an installable iPhone IPA or a TestFlight/App Store release.'
+            echo '- Compilation does not verify launch, touch input, rendering, or gameplay.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: PocketToys-ios-simulator
+          path: PocketToys-ios-simulator-*.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Upload Xcode build log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-simulator-xcode-log
+          path: xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
+
