@@ -5,6 +5,16 @@ namespace PocketToys.WaterRingToss.Game
 {
     public static class ToyGeometry
     {
+        public static Mesh BackdropQuad()
+        {
+            var mesh = new Mesh { name = "Ocean backdrop quad" };
+            mesh.vertices = new[] { new Vector3(-.5f, -.5f, 0), new Vector3(.5f, -.5f, 0), new Vector3(-.5f, .5f, 0), new Vector3(.5f, .5f, 0) };
+            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            return mesh;
+        }
+
         // Rounded rectangular extrusion with a rolled bevel, independent of its depth.
         public static Mesh MoldedPanel(Vector3 size, float radius)
         {

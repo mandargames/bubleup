@@ -38,6 +38,27 @@ namespace PocketToys.Tests
             if (Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true);
         }
 
+        [Test]
+        public void BackdropIsVisibleFromCameraWithoutPhysics()
+        {
+            var backdrop = game.Presentation.transform.Find("Ocean atmosphere");
+            Assert.NotNull(backdrop);
+            Assert.IsNull(backdrop.GetComponent<Collider>());
+            var renderer = backdrop.GetComponent<MeshRenderer>();
+            Assert.That(renderer.sharedMaterial.shader.name, Is.EqualTo("PocketToys/OceanBackdrop"));
+            var mesh = backdrop.GetComponent<MeshFilter>().sharedMesh;
+            var vertices = mesh.vertices; var triangles = mesh.triangles;
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                var a = backdrop.TransformPoint(vertices[triangles[i]]);
+                var b = backdrop.TransformPoint(vertices[triangles[i + 1]]);
+                var c = backdrop.TransformPoint(vertices[triangles[i + 2]]);
+                Assert.That(Vector3.Dot(Vector3.Cross(b - a, c - a), game.Presentation.Camera.transform.position - a), Is.GreaterThan(0));
+            }
+            Assert.IsTrue(game.Ready);
+            Assert.NotNull(game.Hud);
+        }
+
         [UnityTest]
         public IEnumerator MenusPauseRestartAndSettingsKeepStateConsistent()
         {

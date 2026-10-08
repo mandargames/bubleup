@@ -69,7 +69,14 @@ namespace PocketToys.WaterRingToss.Game
             glass = new Material(game.campaign.glassMaterial); resources.Add(glass);
             ringMesh = ToyGeometry.Torus(.305f, .086f); resources.Add(ringMesh);
             backdrop = new Material(Resources.Load<Shader>("OceanBackdrop")); resources.Add(backdrop);
-            backdropPlane = Primitive("Ocean atmosphere", PrimitiveType.Quad, transform, new Vector3(0, 0, 4), new Vector3(30, 30, 1), backdrop);
+            // CreatePrimitive(Quad) implicitly needs MeshCollider, which is stripped
+            // from iPhone players. This decorative surface needs no physics component.
+            var backdropObject = new GameObject("Ocean atmosphere", typeof(MeshFilter), typeof(MeshRenderer));
+            backdropPlane = backdropObject.transform; backdropPlane.SetParent(transform, false);
+            backdropPlane.localPosition = new Vector3(0, 0, 4); backdropPlane.localScale = new Vector3(30, 30, 1);
+            var backdropMesh = ToyGeometry.BackdropQuad(); resources.Add(backdropMesh);
+            backdropObject.GetComponent<MeshFilter>().sharedMesh = backdropMesh;
+            backdropObject.GetComponent<MeshRenderer>().sharedMaterial = backdrop;
 
             // Layered enclosure: shell, metallic lip, dark rubber seal and recessed water chamber.
             float tankHeight = TankTop - TankBottom, tankCenter = (TankTop + TankBottom) * .5f;
