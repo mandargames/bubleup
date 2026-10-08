@@ -38,7 +38,7 @@ namespace PocketToys.Editor
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             PlayerSettings.productName = "Pocket Toys"; PlayerSettings.companyName = "Pocket Toys Local";
-            PlayerSettings.bundleVersion = "0.2.0";
+            PlayerSettings.bundleVersion = "0.2.1";
             PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { GameIcon.Create() }, IconKind.Any);
             PlayerSettings.defaultScreenWidth = 600; PlayerSettings.defaultScreenHeight = 1000;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
@@ -68,13 +68,13 @@ namespace PocketToys.Editor
         {
             new LevelDefinition {
                 id="water_01", title="First Splash", chapter="FIRST SPLASH", lesson="One ring. Find the rhythm.",
-                hint="Lift above the peg, then ease into the landing.",
+                hint="Lift beside the peg, then steer over its tip.",
                 rings=new[]{new Vector2(-1.1f,-1.85f)}, pegs=new[]{Peg(0f,.9f,1.4f,1)},
                 goldSeconds=22f, silverSeconds=50f, goldPumps=8
             },
             new LevelDefinition {
                 id="water_02", title="Double Dip", chapter="FIND THE BALANCE", lesson="Two rings, one satisfying stack.",
-                hint="Caught rings stay put. Guide the next one home.",
+                hint="Landed rings lock in place. Stack the next one on top.",
                 rings=new[]{new Vector2(-1.25f,-1.85f),new Vector2(1.25f,-1.85f)}, pegs=new[]{Peg(0f,1.15f,1.65f,2)},
                 goldSeconds=36f, silverSeconds=70f, goldPumps=15, starsRequired=1
             },

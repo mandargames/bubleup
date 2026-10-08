@@ -5,6 +5,51 @@ namespace PocketToys.WaterRingToss.Game
 {
     public static class ToyGeometry
     {
+        // Rounded rectangular extrusion with a rolled bevel, independent of its depth.
+        public static Mesh MoldedPanel(Vector3 size, float radius)
+        {
+            const int arc = 12, layers = 9;
+            const int perimeter = 4 * (arc + 1);
+            float bevel = Mathf.Min(.14f, size.z * .35f);
+            var vertices = new List<Vector3>(); var uv = new List<Vector2>(); var triangles = new List<int>();
+            for (int layer = 0; layer < layers; layer++)
+            {
+                float angle = Mathf.PI * layer / (layers - 1);
+                float inset = bevel * (1 - Mathf.Sin(angle));
+                float z = Mathf.Cos(angle) * size.z * .5f;
+                float r = Mathf.Max(.02f, radius - inset);
+                for (int corner = 0; corner < 4; corner++)
+                for (int step = 0; step <= arc; step++)
+                {
+                    float a = (corner * 90f + step * 90f / arc) * Mathf.Deg2Rad;
+                    float cx = (corner == 0 || corner == 3 ? 1 : -1) * (size.x * .5f - radius);
+                    float cy = (corner < 2 ? 1 : -1) * (size.y * .5f - radius);
+                    var p = new Vector3(cx + Mathf.Cos(a) * r, cy + Mathf.Sin(a) * r, z);
+                    vertices.Add(p); uv.Add(new Vector2(p.x / size.x + .5f, p.y / size.y + .5f));
+                }
+            }
+            for (int layer = 0; layer < layers - 1; layer++)
+            for (int p = 0; p < perimeter; p++)
+            {
+                int a = layer * perimeter + p, b = layer * perimeter + (p + 1) % perimeter;
+                triangles.Add(a); triangles.Add(a + perimeter); triangles.Add(b);
+                triangles.Add(b); triangles.Add(a + perimeter); triangles.Add(b + perimeter);
+            }
+            for (int face = 0; face < 2; face++)
+            {
+                int center = vertices.Count, start = face == 0 ? 0 : (layers - 1) * perimeter;
+                vertices.Add(new Vector3(0, 0, (face == 0 ? 1 : -1) * size.z * .5f)); uv.Add(Vector2.one * .5f);
+                for (int p = 0; p < perimeter; p++)
+                {
+                    triangles.Add(center);
+                    triangles.Add(start + (face == 0 ? p : (p + 1) % perimeter));
+                    triangles.Add(start + (face == 0 ? (p + 1) % perimeter : p));
+                }
+            }
+            var mesh = new Mesh { name = "Rolled enamel panel" };
+            mesh.SetVertices(vertices); mesh.SetUVs(0, uv); mesh.SetTriangles(triangles, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
+        }
+
         public static Mesh RoundedBox(Vector3 size, float radius)
         {
             const int steps = 16;

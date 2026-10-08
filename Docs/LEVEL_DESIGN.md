@@ -10,7 +10,11 @@ The editable source is `Assets/_Game/Toys/WaterRingToss/Levels/FiveAdventures.as
 | The Scenic Route | Read an obstacle and use the side channels | Three rings, two raised pegs and a tilted central baffle | 65 seconds / 30 pumps | 115 seconds |
 | A Little Symphony | Combine steering, capacity management and timing | Four rings and three pegs; the middle peg gently moves | 80 seconds / 38 pumps | 140 seconds |
 
-Every completion earns one star. There is no countdown failure or energy system. Rings remain caught once seated. Any ring may fill any available slot. Dots below a peg show its total capacity. Each completed level unlocks the next; replaying keeps the best stars, time and pump count independently.
+Every completion earns one star. There is no countdown failure or energy system. Seated rings lock onto their peg and cannot be dislodged by pumps or steering. Any ring may fill any available slot. Dots below a peg show its total capacity. The level completes shortly after every ring has landed and locked. Each completed level unlocks the next; replaying keeps the best stars, time and pump count independently.
+
+Pegs and their compact shelves are solid. The shelves are narrower than a ring to leave generous upward routes beside each peg. Lift beside a shelf, steer the opening over the peg tip, then stop pumping to let the ring fall and settle. A ring crossing the tip has not scored yet; it must physically rest on the shelf or stack. Once locked, its solid colliders support subsequent rings, and it follows the peg if it moves.
+
+The chamber spans 6.8 units horizontally and 7.2 vertically, with a wider camera view and unchanged ring size. Vertical jets at x = ±2.15 cover the outer lanes; pumps do not add lateral force. Tilt or touch/keyboard steering determines horizontal travel. Peg layouts retain their authored positions, leaving more room around them.
 
 Five total stars unlock Apricot enamel; ten unlock Moonstone. These are cosmetic changes.
 

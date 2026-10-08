@@ -34,7 +34,7 @@ namespace PocketToys.WaterRingToss.Game
         public string Notice { get; private set; }
         public event Action Changed;
         int[] occupied;
-        float nextLeft, nextRight;
+        float nextLeft, nextRight, completionRest;
         GameScreen settingsReturn = GameScreen.Home;
         bool hasAttempt;
         public static string SavePathOverride;
@@ -46,6 +46,7 @@ namespace PocketToys.WaterRingToss.Game
             Progress = new LocalProgress(SavePathOverride ?? Path.Combine(Application.persistentDataPath, "pocket-toys-v1.json"));
             Analytics = new LocalAnalytics(Path.Combine(Application.persistentDataPath, "local-diagnostics.jsonl"));
             Sensor = gameObject.AddComponent<SensorInputService>();
+            Sensor.smoothingSeconds = .16f;
             Audio = gameObject.AddComponent<ToyAudio>();
             Presentation = gameObject.AddComponent<ToyPresentation>();
             Presentation.Initialize(this);
@@ -74,7 +75,7 @@ namespace PocketToys.WaterRingToss.Game
             if (hasAttempt && Caught < Rings.Count) Analytics.Track("level_abandoned", Level.id, Elapsed, Pumps);
             LevelIndex = index;
             Elapsed = 0f; Pumps = 0; Caught = 0; EarnedStars = 0;
-            nextLeft = nextRight = 0f;
+            nextLeft = nextRight = completionRest = 0f;
             Sensor.SetVirtualTilt(0f);
             CreateLevel();
             hasAttempt = true;
@@ -109,7 +110,10 @@ namespace PocketToys.WaterRingToss.Game
         public void OnRingCaptured(FloatingRing ring)
         {
             Caught++; Audio.Catch(Caught); Presentation.Celebrate(ring.transform.position);
-            if (Caught != Rings.Count) return;
+        }
+
+        void CompleteLevel()
+        {
             EarnedStars = LocalProgress.EvaluateStars(Elapsed, Pumps, Level.silverSeconds, Level.goldSeconds, Level.goldPumps);
             Progress.Complete(Level.id, EarnedStars, Elapsed, Pumps);
             Progress.Data.tutorialSeen = true;
@@ -132,7 +136,7 @@ namespace PocketToys.WaterRingToss.Game
         {
             Screen = screen;
             Sensor.SetVirtualTilt(0f);
-            foreach (var ring in Rings) ring.Pause(screen != GameScreen.Playing && !(screen == GameScreen.Complete && ring.Captured));
+            foreach (var ring in Rings) ring.Pause(screen != GameScreen.Playing);
             Changed?.Invoke();
         }
         public void Home() { SetScreen(GameScreen.Home); }
@@ -176,6 +180,8 @@ namespace PocketToys.WaterRingToss.Game
                 if (DeviceInput.GetKeyDown(KeyCode.E)) Pump(false);
                 if (DeviceInput.GetKeyDown(KeyCode.R)) Restart();
                 if (DeviceInput.GetKeyDown(KeyCode.C)) Calibrate();
+                completionRest = Caught == Rings.Count ? completionRest + Time.deltaTime : 0f;
+                if (completionRest >= .3f) CompleteLevel();
             }
             if (DeviceInput.GetKeyDown(KeyCode.Escape))
             {

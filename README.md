@@ -18,11 +18,15 @@ Run `Builds/Windows/PocketToys.exe`. Keep its adjacent data folder and DLLs toge
 
 The app pauses when backgrounded. Calibration, sensitivity, audio, haptics, reduced motion and shell choice are saved. Music, effects and haptics have separate switches. Local diagnostics are optional and off by default.
 
+Pumps lift vertically; use keyboard, the touch slider or phone tilt to steer left and right. Both outer lanes receive enough lift to reach the corners of the expanded tank. Steering sensitivity in Settings applies to all steering inputs. Once a ring lands and settles on a peg, it locks in place and cannot be pumped off. Locked rings follow moving pegs and support the next ring in a stack.
+
 ## What is included
 
 - Five distinct levels: First Splash, Double Dip, Side by Side, The Scenic Route, and A Little Symphony.
 - Multiple rings, capacity-limited peg stacks, asymmetric pumps, a baffle, and a moving peg.
+- Hollow ring colliders, solid pegs and shelves, gradual water-jet impulses, and physical settling before a catch scores. Lift beside a peg and steer over its tip; shelves also block rings coming from below.
 - Original rounded toy meshes, layered water/acrylic shaders, ring motion, bubbles and responsive physical pump buttons.
+- Illustrated coral lagoon, mint enamel cabinet, animated underwater light, floating bubbles, and a collectible-toy home screen with bundled display typography. See [visual design and art credits](Docs/VISUAL_DESIGN.md).
 - Original synthesized water/contact/celebration sounds and quiet music.
 - Home, level selection, pause, completion, settings and collectible shell screens.
 - Stars, sequential unlocks, best times/pump counts, versioned local saves and backup recovery.
@@ -43,7 +47,7 @@ The original Phase 0 scene remains at `Assets/_Game/Toys/WaterRingToss/Scenes/Wa
 
 - **Windows:** Pocket Toys → Build integrated Windows game. Output: `Builds/Windows/PocketToys.exe`.
 - **Android:** Pocket Toys → Build local Android APK. Output: `Builds/Android/PocketToys.apk`. Uses the installed Unity Android SDK/NDK/JDK, ARM64 and a development signature for local testing. A physical device is required to assess motion and haptic feel.
-- **iOS:** Switch to iOS in Build Profiles and export the integrated scene. Compile and sign the Xcode project on a Mac. This Windows workspace has not validated the native iOS build.
+- **iOS:** The `dot/ios-cloud-build` branch exports Unity and compiles an unsigned ARM64 iPhone IPA using GitHub Actions. Download the `PocketToys-ios-device-unsigned` artifact and import the IPA into AltStore Classic using your own Apple account. See [iPhone build instructions](Docs/IOS_CLOUD_BUILD.md). The previous 0.2.0 build was installed successfully by the user; each new build still needs device testing.
 
 ## Saves and backups
 

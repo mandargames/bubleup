@@ -4,7 +4,7 @@ The approved delivery is five polished levels with the core game systems. This i
 
 | Area | Implemented | Remaining evidence or integration |
 | --- | --- | --- |
-| Physical interaction | Water drag and settling, localized jets, shared filtered tilt, ring wobble, shallow ring collisions, assisted descending catches, stacking and moving pegs | Real-phone comfort, latency and sustained hands-on difficulty tuning |
+| Physical interaction | Water drag and settling, gradual water jets, gentler filtered steering, hollow compound ring colliders, stable ring angle, solid pegs/shelves, locked catches and moving pegs | Real-phone comfort, latency and sustained hands-on difficulty tuning |
 | Presentation | Original molded casing and pump meshes, five ring colours, layered acrylic/water shaders, pooled bubbles, responsive pumps, screen transitions and three shell colours | Art direction approval and representative device visual checks |
 | Audio / haptics | Original layered synthesized effects and music, separate toggles, Android semantic feedback adapter and native iOS feedback plugin | Speaker/headphone mix review, device haptic checks and Xcode compilation |
 | Five levels | Five distinct lessons with editable geometry, capacities, forces and star thresholds; each completed by control-only automation | New-player observation; automated completion does not establish human difficulty |
@@ -23,7 +23,9 @@ Capture player observations for each level: whether the objective is understood,
 
 ## Physics choice
 
-The chamber uses 3D meshes with gameplay constrained to a plane. Ring rotation is visual; a shallow capsule handles ring/wall/baffle collisions. Peg threading uses a descending-crossing rule and assisted settling into capacity-limited slots. It does not simulate full fluid dynamics or unrestricted torus/peg contact. These choices keep the controls consistent and the simulation inexpensive.
+The chamber uses 3D bodies with their centers constrained to a plane. Each ring has sixteen capsule segments around its open center; the rendered torus and colliders share a stable angle to prevent sideways wedging on pegs. Peg stems, shelves, baffles and other rings participate in collision response. Low-friction contacts, drag and gravity minus buoyancy operate throughout flight and descent. Pump force is vertical and distributed over a short pulse rather than directly overwriting velocity; it adds no lateral shove. The 6.8 by 7.2 chamber and separated jets provide wider outer routes. Steering acceleration remains gentle, and the saved sensitivity setting applies to phone, keyboard and slider input.
+
+A descending crossing through the peg's opening marks threading, but the ring remains dynamic. Scoring requires low-speed, supported contact near the shelf or stack. A scored ring becomes kinematic at its resting position relative to the peg and ignores pumps and steering permanently for that attempt. Its colliders remain solid for stacking, and it follows moving pegs. Completion follows after all rings lock; menus and the completion screen pause movement. This is a constrained toy simulation with simplified water forces, not unrestricted 3D fluid dynamics.
 
 ## Native feedback references
 

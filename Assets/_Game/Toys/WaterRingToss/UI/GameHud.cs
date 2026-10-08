@@ -14,18 +14,20 @@ namespace PocketToys.WaterRingToss.Game
         RectTransform safeArea, screenRoot, leftPump, rightPump;
         Text progress, timer, pumpCount, sensitivityLabel, levelHint, leanLabel, controlsHint, homeSubtitle;
         Slider lean;
-        Font font;
+        Font font, displayFont;
+        RectTransform progressPill, timerPill;
         Sprite rounded, circle, starSprite;
         Texture2D roundedTexture, circleTexture, starTexture;
         CanvasGroup fade;
         float screenAge;
         GameScreen builtScreen;
         static Color Hex(string hex) => ToyPresentation.Color(hex);
-        readonly Color ink = Hex("#122C36"), cream = Hex("#F9F0DA"), muted = Hex("#9DB8BD"), gold = Hex("#F4C46A"), panel = Hex("#203D49");
+        readonly Color ink = Hex("#123D49"), cream = Hex("#FFF7E4"), muted = Hex("#A6CFD0"), gold = Hex("#FFD17A"), panel = Hex("#174B58");
 
         public void Initialize(GameSession session)
         {
-            game = session; font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            game = session; font = Resources.Load<Font>("Lato") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            displayFont = Resources.Load<Font>("LilitaOne") ?? font;
             roundedTexture = ShapeTexture(false); circleTexture = ShapeTexture(true);
             rounded = Sprite.Create(roundedTexture, new Rect(0, 0, 64, 64), Vector2.one * .5f, 100f, 0, SpriteMeshType.FullRect, Vector4.one * 20f);
             circle = Sprite.Create(circleTexture, new Rect(0, 0, 64, 64), Vector2.one * .5f);
@@ -102,28 +104,35 @@ namespace PocketToys.WaterRingToss.Game
         }
         Text Text(RectTransform rect, string value, int size, Color color, FontStyle style = FontStyle.Normal, TextAnchor alignment = TextAnchor.MiddleCenter)
         {
-            var text = rect.gameObject.AddComponent<Text>(); text.font = font; text.text = value; text.fontSize = size; text.color = color;
-            text.fontStyle = style; text.alignment = alignment; text.raycastTarget = false;
+            var text = rect.gameObject.AddComponent<Text>(); text.font = style == FontStyle.Bold && size >= 23 ? displayFont : font; text.text = value; text.fontSize = size; text.color = color;
+            text.fontStyle = text.font == displayFont ? FontStyle.Normal : style; text.alignment = alignment; text.raycastTarget = false;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Overflow; return text;
         }
         Text Label(string value, float x, float y, int size, Color color, float width = 630f, float height = 42f, bool bold = false)
             => Text(Rect(value, x, y, width, height), value, size, color, bold ? FontStyle.Bold : FontStyle.Normal);
         Button Button(string label, float x, float y, float width, float height, Color color, Action action, bool enabled = true)
         {
+            var shadow = Rect(label + " shadow", x, y, width, height);
+            shadow.anchoredPosition = new Vector2(0, -5);
+            Image(shadow, new Color(.01f, .045f, .065f, .36f)).raycastTarget = false;
             var rect = Rect(label, x, y, width, height); var image = Image(rect, color);
             var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image; button.interactable = enabled;
             var colors = button.colors; colors.highlightedColor = new Color(1.06f, 1.06f, 1.06f); colors.pressedColor = new Color(.75f, .85f, .86f); colors.disabledColor = new Color(.6f, .6f, .6f, .5f); button.colors = colors;
             var nav = button.navigation; nav.mode = Navigation.Mode.None; button.navigation = nav;
             button.onClick.AddListener(() => { game.Audio.Click(); action(); });
             var textRect = Stretch("Label", rect); textRect.offsetMin = new Vector2(12f, 0f); textRect.offsetMax = new Vector2(-12f, 0f);
-            Text(textRect, label, height >= 64f ? 21 : 16, color == gold || color == cream ? ink : cream, FontStyle.Bold);
+            Text(textRect, label, height >= 64f ? 24 : 16, color == gold || color == cream ? ink : cream, FontStyle.Bold);
             return button;
         }
         void Overlay(float opacity)
         {
             var rect = Stretch("Backdrop", screenRoot); Image(rect, new Color(.035f, .085f, .12f, opacity), false);
         }
-        void Card(float x, float y, float width, float height) { Image(Rect("Card", x, y, width, height), panel); }
+        void Card(float x, float y, float width, float height)
+        {
+            Image(Rect("Card rim", x, y, width + 2f, height + 2f), Hex("#39717A")).raycastTarget = false;
+            Image(Rect("Card", x, y, width, height), panel).raycastTarget = false;
+        }
         void Stars(float x, float y, int count, float size = 32f, float spacing = 42f)
         {
             for (int i = 0; i < 3; i++)
@@ -134,8 +143,9 @@ namespace PocketToys.WaterRingToss.Game
         }
         void Brand(string subtitle)
         {
-            Label("P O C K E T   T O Y S", .5f, .953f, 21, cream, 620f, 40f, true);
-            Label(subtitle, .5f, .916f, 12, muted);
+            Label("P O C K E T   T O Y S", .5f, .953f, 19, cream, 620f, 40f, true);
+            Label(subtitle, .5f, .920f, 11, muted);
+            var line = Rect("Brand accent", .5f, .894f, 34, 2); Image(line, gold, false).raycastTarget = false;
         }
 
         void Rebuild()
@@ -144,6 +154,7 @@ namespace PocketToys.WaterRingToss.Game
             screenRoot = Stretch("Screen - " + game.Screen, safeArea); fade = screenRoot.gameObject.AddComponent<CanvasGroup>();
             screenAge = 0f; builtScreen = game.Screen; progress = timer = pumpCount = null; leftPump = rightPump = null; lean = null;
             levelHint = leanLabel = controlsHint = homeSubtitle = null;
+            progressPill = timerPill = null;
             switch (game.Screen)
             {
                 case GameScreen.Home: Home(); break;
@@ -159,30 +170,31 @@ namespace PocketToys.WaterRingToss.Game
 
         void Home()
         {
-            Overlay(.25f);
-            Brand("LITTLE TOYS.  LOVELY MOMENTS.");
-            Label("Just one more splash.", .5f, .86f, 35, cream, 650f, 60f, true);
-            homeSubtitle = Label("Tilt, pump, and find your rhythm.", .5f, .80f, 18, ink);
-            Card(.5f, .226f, 620f, 272f);
+            Brand("SMALL WONDERS.  HAPPY HANDS.");
+            Label("A little ocean.\nA lot of joy.", .5f, .824f, 54, cream, 650f, 140f, true);
+            Label("Your pocket-sized escape.", .5f, .768f, 17, muted, 630f, 24f);
+            homeSubtitle = Label("C O R A L   C L U B", .5f, .70f, 14, ink);
+            Card(.5f, .162f, 620f, 225f);
             int count = game.Progress.Data.TotalStars;
-            Label(count + " / " + game.campaign.levels.Length * 3 + " STARS COLLECTED", .5f, .307f, 13, gold);
-            Button("PLAY  /  " + game.Level.title.ToUpperInvariant(), .5f, .252f, 554f, 74f, gold, () => game.StartLevel(game.LevelIndex));
-            Button("LEVELS", .3f, .179f, 256f, 54f, Hex("#2B4E59"), () => game.SetScreen(GameScreen.Levels));
-            Button("TOY SHELLS", .7f, .179f, 256f, 54f, Hex("#2B4E59"), () => game.SetScreen(GameScreen.Collection));
-            Button("SETTINGS", .5f, .092f, 210f, 42f, panel, game.OpenSettings);
-            Label("WATER RING TOSS  /  FIVE SMALL ADVENTURES", .5f, .045f, 12, muted);
+            Label(count + " / " + game.campaign.levels.Length * 3 + " STARS  ·  FIVE LITTLE ADVENTURES", .5f, .228f, 12, gold);
+            Button("LET'S PLAY  >", .5f, .178f, 554f, 72f, gold, () => game.StartLevel(game.LevelIndex));
+            Button("ADVENTURES", .3f, .111f, 256f, 49f, Hex("#286675"), () => game.SetScreen(GameScreen.Levels));
+            Button("TOY SHELLS", .7f, .111f, 256f, 49f, Hex("#286675"), () => game.SetScreen(GameScreen.Collection));
+            Button("SETTINGS", .5f, .034f, 160f, 35f, panel, game.OpenSettings);
         }
 
         void Play()
         {
-            Brand("W A T E R   R I N G   T O S S");
-            Label((game.LevelIndex + 1).ToString("00") + "  /  " + game.Level.title, .5f, .867f, 29, cream, 650f, 52f, true);
+            Brand("T H E   C O R A L   C O L L E C T I O N");
+            Label((game.LevelIndex + 1).ToString("00") + "  /  " + game.Level.title, .5f, .859f, 34, cream, 650f, 52f, true);
             levelHint = Label(game.Level.hint, .5f, .801f, 16, ink, 555f, 40f);
-            progress = Label("", .32f, .735f, 15, cream, 200f);
-            timer = Label("", .7f, .735f, 15, cream, 200f);
+            progressPill = Rect("Ring counter capsule", .5f, .5f, 164, 38); Image(progressPill, new Color(.025f, .20f, .25f, .85f)).raycastTarget = false;
+            timerPill = Rect("Time capsule", .5f, .5f, 100, 38); Image(timerPill, new Color(.025f, .20f, .25f, .85f)).raycastTarget = false;
+            progress = Label("", .32f, .735f, 14, cream, 164f);
+            timer = Label("", .7f, .735f, 14, cream, 100f);
             leftPump = PumpButton(true); rightPump = PumpButton(false);
             pumpCount = Label("", .5f, .296f, 13, ink, 200f);
-            leanLabel = Label("L E A N", .5f, .156f, 11, ink);
+            leanLabel = Label("L E A N   T O   G U I D E", .5f, .156f, 10, ink);
             lean = Slider("Lean", .5f, .129f, 430f, -1f, 1f, 0f, value => game.Sensor.SetVirtualTilt(value));
             lean.gameObject.AddComponent<CenterOnRelease>(); lean.interactable = !game.Sensor.UseSensor;
             controlsHint = Label(game.Sensor.UseSensor ? "Tilt your phone to steer" : Application.isMobilePlatform ? "Drag to steer. Release to center." : "Q / E  pump     A / D  lean     R  restart", .5f, .09f, 13, muted);
@@ -195,17 +207,17 @@ namespace PocketToys.WaterRingToss.Game
             var rect = Rect(left ? "Left pump" : "Right pump", .5f, .5f, 114f, 114f);
             var image = Image(rect, new Color(1f, 1f, 1f, .001f), false); image.sprite = circle;
             rect.gameObject.AddComponent<PumpPress>().Action = () => game.Pump(left);
-            Text(Stretch("PUMP", rect), "PUMP", 16, ink, FontStyle.Bold);
+            Text(Stretch("PUMP", rect), "PUSH", 17, ink, FontStyle.Bold);
             return rect;
         }
         Slider Slider(string name, float x, float y, float width, float min, float max, float value, Action<float> action)
         {
-            var rect = Rect(name, x, y, width, 36f); Image(rect, Hex("#31515C"));
+            var rect = Rect(name, x, y, width, 28f); Image(rect, Hex("#286170"));
             var slider = rect.gameObject.AddComponent<Slider>(); slider.minValue = min; slider.maxValue = max; slider.value = value;
             var area = Stretch("Handle area", rect); area.offsetMin = new Vector2(18f, 0f); area.offsetMax = new Vector2(-18f, 0f);
-            var handle = Rect("Handle", .5f, .5f, 38f, 38f, area); var image = Image(handle, cream, false); image.sprite = circle;
+            var handle = Rect("Handle", .5f, .5f, 28f, 28f, area); var image = Image(handle, cream, false); image.sprite = circle;
             slider.handleRect = handle; slider.targetGraphic = image;
-            handle.sizeDelta = new Vector2(38f, 0f);
+            handle.sizeDelta = new Vector2(28f, 0f);
             slider.onValueChanged.AddListener(v => action(v));
             var nav = slider.navigation; nav.mode = Navigation.Mode.None; slider.navigation = nav;
             return slider;
@@ -224,15 +236,17 @@ namespace PocketToys.WaterRingToss.Game
 
         void Levels()
         {
-            Overlay(.94f); Brand("YOUR LITTLE ADVENTURES");
+            Overlay(.88f); Brand("YOUR LITTLE ADVENTURES");
             Label("Find your flow.", .5f, .855f, 36, cream, 630f, 55f, true);
             Label(game.Progress.Data.TotalStars + " of " + game.campaign.levels.Length * 3 + " stars  /  finish a level to open the next", .5f, .807f, 15, muted);
             for (int i = 0; i < game.campaign.levels.Length; i++)
             {
                 int index = i; var level = game.campaign.levels[i]; float y = .714f - i * .122f;
                 bool unlocked = game.Unlocked(i); var record = game.Progress.Data.levels.Find(x => x.id == level.id);
-                var button = Button("", .5f, y, 626f, 136f, unlocked ? panel : Hex("#1A3541"), () => game.StartLevel(index), unlocked);
+                var button = Button("", .5f, y, 626f, 136f, unlocked ? panel : Hex("#153641"), () => game.StartLevel(index), unlocked);
                 var rowColors = button.colors; rowColors.disabledColor = UnityEngine.Color.white; button.colors = rowColors;
+                var badge = Rect("Adventure badge", .095f, .5f, 64, 64, button.transform);
+                var badgeImage = Image(badge, unlocked ? Hex("#286A71") : Hex("#224851"), false); badgeImage.sprite = circle; badgeImage.raycastTarget = false;
                 var number = Rect("Number", .095f, .5f, 60f, 54f, button.transform); Text(number, (i + 1).ToString("00"), 29, unlocked ? gold : muted, FontStyle.Bold);
                 var title = Rect("Title", .48f, .69f, 380f, 38f, button.transform); Text(title, level.title, 23, unlocked ? cream : muted, FontStyle.Bold, TextAnchor.MiddleLeft);
                 var hint = Rect("Lesson", .48f, .39f, 380f, 44f, button.transform); Text(hint, unlocked ? level.lesson : "Complete " + game.campaign.levels[i - 1].title, 14, muted, FontStyle.Normal, TextAnchor.MiddleLeft);
@@ -267,8 +281,8 @@ namespace PocketToys.WaterRingToss.Game
             Toggle("Haptics", "Tactile feedback on supported phones", .608f, () => game.Settings.haptics, v => game.Settings.haptics = v);
             Toggle("Phone tilt", game.Sensor.SensorAvailable ? "Turn off to use the touch slider" : "No motion sensor detected; touch stays available", .528f, () => game.Settings.motion && game.Sensor.SensorAvailable, v => game.Settings.motion = v, game.Sensor.SensorAvailable);
             Toggle("Reduced motion", "Gentler visuals and fewer particles", .448f, () => game.Settings.reduceMotion, v => game.Settings.reduceMotion = v);
-            sensitivityLabel = Label("TILT SENSITIVITY  " + game.Settings.sensitivity.ToString("0.0"), .5f, .38f, 13, muted);
-            Slider("Sensitivity", .5f, .343f, 510f, .8f, 4.5f, game.Settings.sensitivity, v => { game.Settings.sensitivity = v; game.Sensor.sensitivity = v; sensitivityLabel.text = "TILT SENSITIVITY  " + v.ToString("0.0"); });
+            sensitivityLabel = Label("STEERING SENSITIVITY  " + game.Settings.sensitivity.ToString("0.0"), .5f, .38f, 13, muted);
+            Slider("Sensitivity", .5f, .343f, 510f, .8f, 4.5f, game.Settings.sensitivity, v => { game.Settings.sensitivity = v; game.Sensor.sensitivity = v; sensitivityLabel.text = "STEERING SENSITIVITY  " + v.ToString("0.0"); });
             Button("CALIBRATE NEUTRAL POSITION", .5f, .284f, 560f, 51f, panel, game.Calibrate);
             Label(game.Notice ?? "Hold the phone comfortably, then calibrate.", .5f, .241f, 12, muted);
             Toggle("Local diagnostics", "Optional playtest events saved only on this device", .184f, () => game.Settings.localDiagnostics, v => game.Settings.localDiagnostics = v);
@@ -296,12 +310,19 @@ namespace PocketToys.WaterRingToss.Game
             Overlay(.91f); Brand("YOUR TOY, YOUR COLOUR");
             Label("Small treasures.", .5f, .855f, 36, cream, 630f, 55f, true);
             Label("Earn stars to unlock new enamel shells.", .5f, .80f, 16, muted);
-            string[] names = { "Sea Glass", "Apricot", "Moonstone" }; string[] colors = { "#BFE7DC", "#EBC5AE", "#B8B9DE" };
+            string[] names = { "Sea Glass", "Apricot", "Moonstone" }; string[] colors = { "#8AD6C4", "#EEAF89", "#ABA0DB" };
             for (int i = 0; i < 3; i++)
             {
                 int choice = i, required = i == 1 ? 5 : i == 2 ? 10 : 0; float y = .67f - i * .178f;
                 Card(.5f, y, 620f, 184f);
                 var swatch = Rect("Enamel swatch", .18f, y, 86f, 105f); Image(swatch, Hex(colors[i]));
+                var window = Rect("Miniature window", .5f, .61f, 67, 64, swatch);
+                var reef = window.gameObject.AddComponent<RawImage>(); reef.texture = Resources.Load<Texture2D>("CoralLagoon"); reef.raycastTarget = false;
+                for (int pump = 0; pump < 2; pump++)
+                {
+                    var mini = Image(Rect("Mini pump", pump == 0 ? .27f : .73f, .16f, 16, 16, swatch), pump == 0 ? Hex("#FF866B") : gold, false);
+                    mini.sprite = circle; mini.raycastTarget = false;
+                }
                 Label(names[i], .48f, y + .033f, 25, cream, 290f, 40f, true);
                 Label(required == 0 ? "Yours from the start" : required + " stars to unlock", .48f, y - .013f, 14, muted, 290f);
                 bool unlocked = game.Progress.Data.TotalStars >= required;
@@ -320,17 +341,19 @@ namespace PocketToys.WaterRingToss.Game
             float delay = builtScreen == GameScreen.Complete ? .55f : 0f;
             fade.alpha = game.Settings.reduceMotion ? 1f : Mathf.Clamp01((screenAge - delay) * 7f);
             fade.blocksRaycasts = fade.alpha > .9f;
-            if (homeSubtitle != null) PlaceAt(homeSubtitle.rectTransform, new Vector3(0f, 4.2f, -1f));
+            if (homeSubtitle != null) PlaceAt(homeSubtitle.rectTransform, new Vector3(0f, 5.25f, -1f));
             if (game.Playing)
             {
                 progress.text = "RINGS  " + game.Caught + " / " + game.Rings.Count;
                 timer.text = game.Elapsed.ToString("0.0") + "s";
                 pumpCount.text = game.Pumps + " PUMPS";
                 PlacePump(leftPump, game.Presentation.LeftButton); PlacePump(rightPump, game.Presentation.RightButton);
-                PlaceAt(levelHint.rectTransform, new Vector3(0f, 4.2f, -1f));
-                PlaceAt(progress.rectTransform, new Vector3(-1.4f, 3.2f, -1f));
-                PlaceAt(timer.rectTransform, new Vector3(1.55f, 3.2f, -1f));
-                PlaceAt(pumpCount.rectTransform, new Vector3(0f, -2.86f, -1f));
+                PlaceAt(levelHint.rectTransform, new Vector3(0f, 5.25f, -1f));
+                PlaceAt(progress.rectTransform, new Vector3(-2.05f, 4.23f, -1f));
+                PlaceAt(timer.rectTransform, new Vector3(2.15f, 4.23f, -1f));
+                PlaceAt(progressPill, new Vector3(-2.05f, 4.23f, -1f));
+                PlaceAt(timerPill, new Vector3(2.15f, 4.23f, -1f));
+                PlaceAt(pumpCount.rectTransform, new Vector3(0f, -3.17f, -1f));
                 PlaceAt(leanLabel.rectTransform, new Vector3(0f, -4.72f, -1f));
                 PlaceAt(lean.GetComponent<RectTransform>(), new Vector3(0f, -5.32f, -1f));
                 PlaceAt(controlsHint.rectTransform, new Vector3(0f, -5.90f, -1f));

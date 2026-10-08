@@ -58,7 +58,7 @@ namespace PocketToys.Core.Input
         {
             // Sensor reads and filter time constants follow physics, independently of render rate.
             if (!calibrated) Calibrate();
-            filter.Step(ReadSample(), UseSensor ? sensitivity : 1f, deadZone, smoothingSeconds, Time.fixedDeltaTime);
+            filter.Step(ReadSample(), UseSensor ? sensitivity : sensitivity / 2.5f, deadZone, smoothingSeconds, Time.fixedDeltaTime);
         }
     }
 }
