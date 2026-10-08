@@ -2,6 +2,8 @@
 
 8 October 2026. Implementation candidate following the owner's instruction to proceed. The [research baseline](POCKET_TOYS_BASELINE.md) remains a historical record of the research stage. This document records subsequent decisions and validation; its implementation status supersedes the baseline's closing statement that no implementation has started.
 
+See the [rendered review and sound sample](REVIEW.md) for a compact visual comparison of short and tall phone layouts.
+
 ## Intended player and experience
 
 The working audience is adults who want a brief, tactile, low-pressure break. Nostalgia for handheld water toys and the pleasure of getting better are secondary motivations. This is a provisional audience hypothesis, not a demographic finding or a claim that the game treats stress or any medical condition.
@@ -38,11 +40,20 @@ Validation is recorded below after the candidate is built. Automated reachabilit
 - Unity EditMode: 17 passed, including progress/settings reload, backup recovery, future-save protection and haptic priority/coalescing.
 - Unity PlayMode: 26 passed. Public-control automation completed all five levels. Includes release/pause/help/restart input lifetime, bounded pump audio, mute, supported stacks and physics regressions.
 - Portrait renders inspected at 360 × 800, 390 × 844 and 375 × 667 with simulated safe-area insets. Gameplay hit targets stay inside those safe areas and are at least 44 simulated points high. Water proportions remain constant. Also inspected Home, help, settings, controls, completion and optional results at 720 × 1280.
-- Windows 0.2.4 build: succeeded with Unity 6000.3.9f1. Packaged five-level audit is tracked below when complete.
-- Native iPhone compilation: pending build.
+- Windows 0.2.4 build: succeeded with Unity 6000.3.9f1. The packaged player completed all five levels without logged runtime errors. The isolated audit recorded 4,167 gameplay frames, a 16.72 ms average and 16.67 ms 95th percentile on the desktop AMD Radeon RX 7900 GRE with a 60 fps cap. These figures do not establish mobile performance. Local evidence: `Logs/UXPlayerAudit/report.json` and accompanying captures in the build checkout.
+- Native iPhone compilation: Unity export and Xcode ARM64 compilation succeeded in [cloud run 37759636001](https://github.com/mandargames/bubleup/actions/runs/37759636001), source `5c1e7613d61cdad5542dea08dd7f645cec451cc5`. Downloaded package metadata confirms version 0.2.4, build 5, minimum iOS 15.0 and bundle identifier `com.pockettoys.water`. Both the app executable and UnityFramework are ARM64 with Mach-O platform iOS device. Neither contains a code-signature command; no provisioning profile is embedded.
 - Physical iPhone installation, speakers, touch, tilt and haptics: not verified by this implementation session.
 
 The first gameplay regression run exposed an existing overly tight stack-height acceptance range. A stable threaded ring resting against a neighboring loose ring could sit above that range and never score. The limit now uses the torus's projected vertical diameter while retaining physical support, low-speed settling and peg-capacity requirements. A targeted offset-stack regression and the complete five-level journey pass after this fix. Automated completion times are not human difficulty benchmarks.
+
+## Build delivery
+
+- [Download the unsigned iPhone artifact](https://github.com/mandargames/bubleup/actions/runs/37759636001/artifacts/11541549170). It expires 15 October 2026 at 10:01 UTC. The archive contains `PocketToys-ios-device-unsigned.ipa`, which requires personal signing with AltStore Classic.
+- IPA SHA-256, independently checked against the packaged manifest: `67543da102bca8ddb31eb8ba2e88863d666313fb82ce9a17b3afbe236e5abe8c`.
+- ZIP SHA-256, independently checked against GitHub's artifact digest: `43a9f6030535735310a9dd7d06369d0f01c416ffd20b97a873af6ae40a6124f7`.
+- Local iPhone files: `D:/GameDevelopment/CasualGames/Builds/iOS-0.2.4/`.
+- Local Windows player: `D:/GameDevelopment/CasualGames/Builds/Windows-0.2.4/PocketToys.exe`. Keep its data folder and DLLs together with the executable.
+- [Draft PR #1](https://github.com/mandargames/bubleup/pull/1) remains unmerged. The validated changes were copied into the main working folder after checking for concurrent edits; existing files were backed up in `Backups/Before-ux-baseline-20261008-152432.zip`.
 
 ## Phone review procedure
 

@@ -8,14 +8,14 @@ The October UX implementation and its current validation are tracked in [Researc
 | --- | --- | --- |
 | Physical interaction | Water drag and settling, gradual water jets, gentler filtered steering, hollow compound ring colliders, stable ring angle, solid pegs/shelves, locked catches and moving pegs | Real-phone comfort, latency and sustained hands-on difficulty tuning |
 | Presentation | Original molded casing and pump meshes, five ring colours, layered acrylic/water shaders, pooled bubbles, responsive pumps, screen transitions and three shell colours | Art direction approval and representative device visual checks |
-| Audio / haptics | Original layered synthesized effects and music, separate toggles, Android semantic feedback adapter and native iOS feedback plugin | Speaker/headphone mix review, device haptic checks and Xcode compilation |
+| Audio / haptics | Original synthesized effects and music, bounded pump voices, separate toggles, prioritized haptics and compiled native iOS feedback plugin | Speaker/headphone mix review and physical-device haptic checks |
 | Five levels | Five distinct lessons with editable geometry, capacities, forces and star thresholds; each completed by control-only automation | New-player observation; automated completion does not establish human difficulty |
 | Progression | One to three stars, sequential unlocks, best times and pump counts, attempt records and shell unlocks | Long-duration and device-upgrade save testing |
 | Save / settings | Versioned local JSON, atomic replacement, backup recovery, future-schema protection, saved calibration/sensitivity/accessibility/audio choices | Platform storage failure and force-close testing on target phones |
 | Accessibility | Touch fallback, keyboard input, sensor calibration, sensitivity, reduced motion, safe-area UI and pause on background | Notch/tablet layouts, motor-accessibility review and device rotation interruption tests |
 | Analytics | Opt-in local events only; size-capped local log; no identifiers or remote endpoint | A deliberate vendor and consent decision if cloud analytics is desired later |
 | Monetization | Provider interface defaults to unavailable; no ad or purchase offers are shown | Provider accounts, product IDs, real SDK integration, consent flow, receipt validation and sandbox purchase testing |
-| Build / distribution | Local Windows executable, compiled ARM64 Android APK, and original launcher icon | Android device installation, store signing, iOS Mac/Xcode export/build, store artwork and submission |
+| Build / distribution | Windows 0.2.4 executable, unsigned ARM64 physical-iPhone 0.2.4 IPA, earlier Android APK, and original launcher icon | New-candidate phone installation/launch, personal or store signing, device qualification, store artwork and submission |
 
 ## Device review before release
 

@@ -16,6 +16,12 @@
 - Validation: 16 EditMode and 23 PlayMode checks passed, including all five levels, corner containment, pause controls and bubble waveform limits. Reviewed 360x800, 390x844 and 375x667 previews with simulated safe-area margins. Both focused preview/layout checks passed after correcting screenshot aspect restoration.
 - iPhone compilation and physical-device validation are recorded separately with the release artifact.
 
+## 2026-10-08 - iPhone background startup repair
+
+- Replaced the decorative background's CreatePrimitive(Quad) with a render-only mesh. The 0.2.1 iPhone export strips MeshCollider, but the old helper dereferenced that collider before assigning the backdrop material and completing startup.
+- Added background material/winding and successful HUD startup coverage. All 16 EditMode and 22 PlayMode tests passed, including the five-level playthrough. Home preview reviewed.
+- The isolated cloud build uses version 0.2.2 (3), commit b68ce1d263a353741aa169f95c8890aacaf4052d. Physical-iPhone launch remains unverified.
+
 ## 2026-10-08 — iPhone build 0.2.1 (2)
 
 - Prepared the current local game changes for a new physical-iPhone build: Coral Club artwork, larger tank, compact peg supports, hollow ring collisions, gentler controls, and rings that lock after landing.
