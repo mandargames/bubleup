@@ -38,8 +38,9 @@ namespace PocketToys.Editor
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             PlayerSettings.productName = "Pocket Toys"; PlayerSettings.companyName = "Pocket Toys Local";
-            PlayerSettings.bundleVersion = "0.2.4";
-            PlayerSettings.iOS.buildNumber = "5";
+            PlayerSettings.bundleVersion = "0.3.0";
+            PlayerSettings.iOS.buildNumber = "6";
+            PlayerSettings.Android.bundleVersionCode = 6;
             PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { GameIcon.Create() }, IconKind.Any);
             PlayerSettings.defaultScreenWidth = 600; PlayerSettings.defaultScreenHeight = 1000;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
@@ -114,11 +115,12 @@ namespace PocketToys.Editor
         [MenuItem("Pocket Toys/Build local Android APK")]
         public static void Android()
         {
-            Setup(); Directory.CreateDirectory("Builds/Android");
+            Setup(); string output = "Builds/Android-" + PlayerSettings.bundleVersion;
+            Directory.CreateDirectory(output);
             PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             EditorUserBuildSettings.buildAppBundle = false;
-            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = "Builds/Android/PocketToys.apk", target = BuildTarget.Android, options = BuildOptions.Development });
+            var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { ScenePath }, locationPathName = output + "/PocketToys-" + PlayerSettings.bundleVersion + ".apk", target = BuildTarget.Android, options = BuildOptions.Development });
             if (result.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) throw new Exception("Android build failed.");
         }
     }

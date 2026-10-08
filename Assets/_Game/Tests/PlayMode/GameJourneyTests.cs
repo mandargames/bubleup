@@ -560,6 +560,108 @@ namespace PocketToys.Tests
             }
         }
 
+        void UnlockTo(int index)
+        {
+            for (int i = 0; i < index; i++) game.Progress.Data.Record(game.campaign.levels[i].id).stars = 3;
+        }
+
+        void SetElapsed(float seconds) => typeof(GameSession).GetProperty(nameof(GameSession.Elapsed)).SetValue(game, seconds);
+
+        [UnityTest]
+        public IEnumerator ExpansionLoadsEveryLevelAndShowsPausedTips()
+        {
+            UnlockTo(14); game.Settings.reduceMotion = true;
+            foreach (int index in Enumerable.Range(5, 10))
+            {
+                game.StartLevel(index); yield return new WaitForSeconds(.15f);
+                Assert.IsTrue(game.Playing); Assert.That(game.Rings.Count, Is.EqualTo(game.Level.rings.Length));
+                Assert.IsTrue(game.Rings.All(r => r.Body.position.x >= -2.8f && r.Body.position.x <= 2.8f));
+                Assert.IsFalse(ShaderUtil.ShaderHasError(Shader.Find("PocketToys/LagoonWater")));
+                Capture("expansion-" + (index + 1).ToString("00"));
+                game.Pause(); float elapsed = game.Elapsed;
+                game.OpenHelp();
+                game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "LEVEL TIP").onClick.Invoke();
+                yield return new WaitForSeconds(.1f);
+                Assert.That(game.Elapsed, Is.EqualTo(elapsed));
+                Assert.IsTrue(game.Hud.GetComponentsInChildren<Text>().Any(x => x.text == game.Level.hint));
+                if (index == 12) Capture("thermal-level-tip");
+                game.CloseHelp(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator IceExpiryPauseRetryAndFinalCatchRespectTheDeadline()
+        {
+            UnlockTo(7); game.StartLevel(7);
+            SetElapsed(59f); game.Pause();
+            yield return new WaitForSeconds(.1f); Assert.That(game.Elapsed, Is.EqualTo(59f));
+            game.Resume(); SetElapsed(60f);
+            yield return null; yield return null;
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Frozen));
+            Assert.That(game.Progress.Data.Record(game.Level.id).stars, Is.Zero);
+            Assert.That(game.Progress.Data.Record("water_01").stars, Is.EqualTo(3));
+            int pumps = game.Pumps; game.Pump(true); game.Resume();
+            Assert.That(game.Pumps, Is.EqualTo(pumps)); Assert.That(game.Screen, Is.EqualTo(GameScreen.Frozen));
+            Capture("ice-expired"); game.Restart(); Assert.That(game.Elapsed, Is.Zero);
+            Assert.IsTrue(game.Rings.All(r => !r.Captured));
+            // Inject completed catch events at the boundary to isolate update ordering;
+            // separate physical landing regressions verify how those events are earned.
+            SetElapsed(59.999f);
+            foreach (var ring in game.Rings) game.OnRingCaptured(ring);
+            yield return new WaitForSeconds(.4f);
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete));
+            Assert.That(game.Elapsed, Is.EqualTo(59.999f));
+            Assert.That(game.Progress.Data.Record(game.Level.id).stars, Is.GreaterThan(0));
+        }
+
+        [UnityTest]
+        public IEnumerator MiniRingsPhysicallyCollectUntilQuotaWithoutLastRingHunt()
+        {
+            UnlockTo(6); game.StartLevel(6); Time.timeScale = 3;
+            for (int i = 0; i < game.TargetCount; i++)
+            {
+                int trayIndex = i % 2;
+                var tray = game.Level.collectors[trayIndex]; var ring = game.Rings[i];
+                float x = tray.center.x + (i / 2 % 2 == 0 ? -.29f : .29f);
+                ring.Body.position = new Vector3(x, tray.center.y + tray.height * .5f + .45f, -.75f);
+                ring.Body.linearVelocity = Vector3.zero;
+                for (int step = 0; step < 250 && !ring.Captured; step++) yield return new WaitForFixedUpdate();
+                Assert.IsTrue(ring.Captured, "Dropped mini ring must settle and count: " + i);
+                Assert.That(ring.CollectorIndex, Is.EqualTo(trayIndex));
+                var locked = ring.Body.position; ring.Nudge(new Vector2(5, 5));
+                yield return new WaitForFixedUpdate(); Assert.That(ring.Body.position, Is.EqualTo(locked));
+            }
+            yield return new WaitForSeconds(.4f);
+            Assert.That(game.Screen, Is.EqualTo(GameScreen.Complete)); Assert.That(game.Caught, Is.EqualTo(6));
+            Assert.That(game.Rings.Count(r => !r.Captured), Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator CurrentsAndFishPauseRestartAndExposeTheirCues()
+        {
+            UnlockTo(13); game.StartLevel(12); SetElapsed(2f); yield return null;
+            var zone = game.Level.currents[0];
+            Assert.That(game.Environment.AccelerationAt(zone.center).y, Is.GreaterThan(5));
+            Assert.That(game.Environment.AccelerationAt(new Vector2(2.6f, 3.7f)), Is.EqualTo(Vector2.zero));
+            Capture("thermal-active"); game.Pause(); float elapsed = game.Elapsed;
+            yield return new WaitForSeconds(.1f);
+            Assert.That(game.Elapsed, Is.EqualTo(elapsed)); Assert.That(game.Environment.AccelerationAt(zone.center), Is.EqualTo(Vector2.zero));
+            game.Restart(); Assert.That(zone.StateAt(game.Elapsed), Is.EqualTo(CurrentState.Warning));
+            game.StartLevel(13); Time.timeScale = 5;
+            for (int step = 0; step < 200 && !game.Environment.FishWarning; step++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(game.Environment.FishWarning);
+            var firstRoute = game.Environment.FishPosition; int firstDirection = game.Environment.FishDirection;
+            game.Pause(); yield return new WaitForSeconds(.2f);
+            Assert.That(game.Environment.FishPosition, Is.EqualTo(firstRoute)); Assert.IsTrue(game.Environment.FishWarning);
+            game.Restart();
+            for (int step = 0; step < 200 && !game.Environment.FishWarning; step++) yield return new WaitForFixedUpdate();
+            Assert.That(game.Environment.FishPosition, Is.EqualTo(firstRoute)); Assert.That(game.Environment.FishDirection, Is.EqualTo(firstDirection));
+            for (int step = 0; step < 200 && !game.Environment.FishActive; step++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(game.Environment.FishActive);
+            for (int step = 0; step < 150 && Mathf.Abs(game.Environment.FishPosition.x) > 2; step++) yield return new WaitForFixedUpdate();
+            Capture("fish-crossing");
+        }
+
         void Capture(string name, int width = 720, int height = 1280)
         {
             var camera = game.Presentation.Camera; var old = camera.targetTexture; var active = RenderTexture.active;
