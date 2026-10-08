@@ -1,3 +1,11 @@
+## 2026-10-08 - Full-screen phone gameplay and gentle bubbles (0.2.3, build 4)
+
+- Replaced the large gameplay branding/header and bottom menu row with a compact level title and top-right settings control. The control pauses play and exposes restart, levels, settings and home. Its touch area is larger than its visible icon.
+- Framed the toy to phone width and expanded the visible water, enclosure and real collision boundaries vertically into the safe screen area. Boundary transforms update only when the layout or level changes. Pump hit targets follow the rendered controls; tilt-enabled devices hide the unused touch slider.
+- Replaced the noisy pump hiss/thump with a quieter four-bubble resonant cluster, soft onset/release and slight pitch variation.
+- Validation: 16 EditMode and 23 PlayMode checks passed, including all five levels, corner containment, pause controls and bubble waveform limits. Reviewed 360x800, 390x844 and 375x667 previews with simulated safe-area margins. Both focused preview/layout checks passed after correcting screenshot aspect restoration.
+- iPhone compilation and physical-device validation are recorded separately with the release artifact.
+
 ## 2026-10-08 — iPhone build 0.2.1 (2)
 
 - Prepared the current local game changes for a new physical-iPhone build: Coral Club artwork, larger tank, compact peg supports, hollow ring collisions, gentler controls, and rings that lock after landing.

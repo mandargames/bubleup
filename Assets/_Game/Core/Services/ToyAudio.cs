@@ -22,7 +22,7 @@ namespace PocketToys.Core.Services
             voices = new AudioSource[8];
             for (int i = 0; i < voices.Length; i++) { voices[i] = gameObject.AddComponent<AudioSource>(); voices[i].playOnAwake = false; }
             music = gameObject.AddComponent<AudioSource>(); music.playOnAwake = false; music.loop = true; music.volume = .17f;
-            pump = Synthesize("Water jet and bubbles", .32f, 0);
+            pump = GentleBubbles();
             tap = Synthesize("Soft plastic contact", .09f, 1);
             chime = Synthesize("Ring landing", .48f, 2);
             success = Synthesize("Completion chord", 1.4f, 3);
@@ -41,7 +41,7 @@ namespace PocketToys.Core.Services
             var source = voices[voice++ % voices.Length]; source.clip = clip;
             source.volume = volume; source.pitch = pitch; source.panStereo = pan; source.Play();
         }
-        public void Pump(bool left) { Play(pump, .75f, left ? .98f : 1.06f, left ? -.2f : .2f); Haptic(0); }
+        public void Pump(bool left) { Play(pump, .52f, .97f + (voice % 4) * .025f, left ? -.12f : .12f); Haptic(0); }
         public void Contact()
         {
             if (Time.unscaledTime - lastContact < .12f) return;
@@ -82,6 +82,27 @@ namespace PocketToys.Core.Services
             #endif
         }
 
+        static AudioClip GentleBubbles()
+        {
+            const int rate = 22050;
+            var data = new float[(int)(rate * .48f)];
+            float[] starts = { .008f, .067f, .146f, .248f };
+            float[] frequencies = { 440f, 620f, 510f, 790f };
+            for (int bubble = 0; bubble < starts.Length; bubble++)
+            for (int i = (int)(starts[bubble] * rate); i < data.Length; i++)
+            {
+                float t = (float)i / rate - starts[bubble];
+                if (t < 0f) continue;
+                float attack = 1f - Mathf.Exp(-t * 260f);
+                float envelope = attack * Mathf.Exp(-t * (25f + bubble * 3f));
+                float phase = 2f * Mathf.PI * frequencies[bubble] * (t + .85f * t * t);
+                // Rounded resonant drops: no broadband hiss or percussive click.
+                data[i] += Mathf.Sin(phase) * envelope * (.24f - bubble * .025f);
+            }
+            for (int i = 0; i < data.Length; i++) data[i] *= Mathf.Clamp01((data.Length - 1 - i) / (rate * .025f));
+            var clip = AudioClip.Create("Gentle bubble cluster", data.Length, 1, rate, false); clip.SetData(data, 0); return clip;
+        }
+
         static AudioClip Synthesize(string name, float duration, int kind)
         {
             const int rate = 22050; var data = new float[(int)(rate * duration)];
@@ -92,19 +113,7 @@ namespace PocketToys.Core.Services
                 float t = (float)i / rate, u = t / duration;
                 noise = noise * .87f + ((float)random.NextDouble() * 2f - 1f) * .13f;
                 float value;
-                if (kind == 0)
-                {
-                    float hiss = noise * Mathf.Sin(Mathf.PI * u) * .8f;
-                    float click = Mathf.Sin(2f * Mathf.PI * 145f * t) * Mathf.Exp(-t * 75f) * .2f;
-                    float bubbles = 0f;
-                    for (int b = 0; b < 4; b++)
-                    {
-                        float bt = t - .025f - b * .058f;
-                        if (bt > 0f) bubbles += Mathf.Sin(2f * Mathf.PI * (370f + b * 140f) * bt + 1200f * bt * bt) * Mathf.Exp(-bt * 55f) * .13f;
-                    }
-                    value = hiss + click + bubbles;
-                }
-                else if (kind == 1) value = (noise * .3f + Mathf.Sin(t * 2f * Mathf.PI * 820f) * .1f) * Mathf.Exp(-t * 55f);
+                if (kind == 1) value = (noise * .3f + Mathf.Sin(t * 2f * Mathf.PI * 820f) * .1f) * Mathf.Exp(-t * 55f);
                 else if (kind == 2) value = (Mathf.Sin(t * 2f * Mathf.PI * 784f) * .24f + Mathf.Sin(t * 2f * Mathf.PI * 1176f) * .09f) * Mathf.Exp(-t * 10f) * Mathf.Min(1f, t * 200f);
                 else
                 {

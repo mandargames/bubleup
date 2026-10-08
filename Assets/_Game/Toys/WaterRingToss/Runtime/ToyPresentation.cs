@@ -9,6 +9,24 @@ namespace PocketToys.WaterRingToss.Game
         public const float TankHalfWidth = 3.4f, TankBottom = -2.45f, TankTop = 4.75f, NozzleX = 2.15f;
         public Camera Camera { get; private set; }
         public PhysicsMaterial ContactMaterial { get; private set; }
+        public float PlayfieldTop { get; private set; } = TankTop;
+        #if UNITY_EDITOR
+        public static Rect? SafeAreaOverride;
+        #endif
+        public static Rect SafeScreenRect
+        {
+            get
+            {
+                #if UNITY_EDITOR
+                if (SafeAreaOverride.HasValue) return SafeAreaOverride.Value;
+                #endif
+                return Screen.safeArea;
+            }
+        }
+        readonly List<(Transform shape, Vector3 position, float height)> stretchingParts = new List<(Transform, Vector3, float)>();
+        readonly List<(Transform shape, Vector3 position)> topDetails = new List<(Transform, Vector3)>();
+        BoxCollider leftWall, rightWall, ceiling, laidOutCeiling;
+        float laidOutTop = float.NaN;
         public Transform LeftButton => pumpButtons[0];
         public Transform RightButton => pumpButtons[1];
         GameSession game;
@@ -94,6 +112,12 @@ namespace PocketToys.WaterRingToss.Game
             Box("Console face", transform, new Vector3(0, -3.60f, .19f), new Vector3(7.08f, 1.57f, .14f), .06f, body, false);
             for (int i = 0; i < 5; i++)
                 Box("Speaker groove", transform, new Vector3((i - 2) * .12f, -3.63f, .09f), new Vector3(.038f, .25f - Mathf.Abs(i - 2) * .04f, .035f), .016f, trim, false);
+            foreach (string name in new[] { "Soft shadow", "Enamel casing", "Recess lip", "Rubber seal", "Water chamber", "Left glass glint", "Acrylic reflection" })
+            {
+                var shape = transform.Find(name);
+                stretchingParts.Add((shape, shape.localPosition, shape.GetComponent<MeshFilter>().sharedMesh.bounds.size.y));
+            }
+            var topGlint = transform.Find("Top glass glint"); topDetails.Add((topGlint, topGlint.localPosition));
             CreateAmbientBubbles();
             for (int i = 0; i < 4; i++)
             {
@@ -112,8 +136,9 @@ namespace PocketToys.WaterRingToss.Game
                 for (int screw = 0; screw < 2; screw++)
                 {
                     var pos = new Vector3(side == 0 ? -3.52f : 3.52f, screw == 0 ? 5.15f : -4.39f, .26f);
-                    Disc("Casing screw", transform, pos, .065f, .022f, metal);
-                    Box("Screw slot", transform, pos + Vector3.back * .023f, new Vector3(.075f, .013f, .015f), .006f, dark, false);
+                    var disc = Disc("Casing screw", transform, pos, .065f, .022f, metal);
+                    var slot = Box("Screw slot", transform, pos + Vector3.back * .023f, new Vector3(.075f, .013f, .015f), .006f, dark, false);
+                    if (screw == 0) { topDetails.Add((disc, disc.localPosition)); topDetails.Add((slot, slot.localPosition)); }
                 }
             }
             for (int i = 0; i < 72; i++)
@@ -182,10 +207,10 @@ namespace PocketToys.WaterRingToss.Game
             foreach (var particle in particles) { particle.life = 0f; particle.transform.gameObject.SetActive(false); }
             levelRoot = new GameObject("Level - " + game.Level.title).transform; levelRoot.SetParent(transform, false);
             float tankHeight = TankTop - TankBottom, tankCenter = (TankTop + TankBottom) * .5f;
-            Wall("Left boundary", new Vector3(-TankHalfWidth - .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
-            Wall("Right boundary", new Vector3(TankHalfWidth + .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
+            leftWall = Wall("Left boundary", new Vector3(-TankHalfWidth - .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
+            rightWall = Wall("Right boundary", new Vector3(TankHalfWidth + .125f, tankCenter, -.15f), new Vector3(.25f, tankHeight + .4f, 2f));
             Wall("Chamber floor", new Vector3(0f, TankBottom - .1f, -.15f), new Vector3(TankHalfWidth * 2 + .5f, .2f, 2f));
-            Wall("Chamber ceiling", new Vector3(0f, TankTop + .1f, -.15f), new Vector3(TankHalfWidth * 2 + .5f, .2f, 2f));
+            ceiling = Wall("Chamber ceiling", new Vector3(0f, TankTop + .1f, -.15f), new Vector3(TankHalfWidth * 2 + .5f, .2f, 2f));
             for (int i = 0; i < game.Level.pegs.Length; i++)
             {
                 var definition = game.Level.pegs[i];
@@ -234,10 +259,10 @@ namespace PocketToys.WaterRingToss.Game
             }
         }
 
-        void Wall(string name, Vector3 center, Vector3 size)
+        BoxCollider Wall(string name, Vector3 center, Vector3 size)
         {
             var go = new GameObject(name); go.transform.SetParent(levelRoot, false); go.transform.localPosition = center;
-            var contact = go.AddComponent<BoxCollider>(); contact.size = size; contact.sharedMaterial = ContactMaterial;
+            var contact = go.AddComponent<BoxCollider>(); contact.size = size; contact.sharedMaterial = ContactMaterial; return contact;
         }
         void Emit(Vector3 position, Vector3 velocity, float size, float life, bool celebration)
         {
@@ -269,8 +294,15 @@ namespace PocketToys.WaterRingToss.Game
         {
             if (game == null) return;
             bool home = game.Screen == GameScreen.Home;
-            Camera.orthographicSize = home ? Mathf.Max(11.2f, 4.6f / Camera.aspect) : Mathf.Max(8f, 4.2f / Camera.aspect);
-            Camera.transform.position = new Vector3(0, home ? -.25f : 0, -20);
+            Camera.orthographicSize = home ? Mathf.Max(11.2f, 4.6f / Camera.aspect) : Mathf.Max(5.8f, 3.95f / Camera.aspect);
+            float viewHeight = Camera.orthographicSize * 2f;
+            var safe = SafeScreenRect;
+            float bottomInset = safe.yMin / Screen.height * viewHeight;
+            float topInset = (1f - safe.yMax / Screen.height) * viewHeight;
+            float bottom = game.Sensor.UseSensor ? -4.72f : -5.35f;
+            float cameraY = home ? -.25f : bottom + Camera.orthographicSize - bottomInset;
+            Camera.transform.position = new Vector3(0, cameraY, -20);
+            SetPlayfieldTop(home ? TankTop : Mathf.Max(TankTop, cameraY + Camera.orthographicSize - topInset - .85f));
             backdropPlane.localPosition = new Vector3(0, Camera.transform.position.y, 4);
             backdropPlane.localScale = new Vector3(Camera.orthographicSize * Camera.aspect * 2.1f, Camera.orthographicSize * 2.1f, 1);
             water.SetFloat("_Motion", game.Settings.reduceMotion ? 0f : 1f);
@@ -284,7 +316,7 @@ namespace PocketToys.WaterRingToss.Game
             }
             for (int i = 0; i < ambientBubbles.Count; i++)
             {
-                float y = Mathf.Repeat(i * .713f + drift * (1 + i % 3 * .22f), TankTop - TankBottom - .6f) + TankBottom + .3f;
+                float y = Mathf.Repeat(i * .713f + drift * (1 + i % 3 * .22f), PlayfieldTop - TankBottom - .6f) + TankBottom + .3f;
                 float x = Mathf.Sin(i * 15.73f) * (TankHalfWidth - .3f) + Mathf.Sin(y * 1.8f + i) * .055f;
                 ambientBubbles[i].localPosition = new Vector3(x, y, -.52f);
             }
@@ -305,6 +337,28 @@ namespace PocketToys.WaterRingToss.Game
                 particle.transform.localScale = Vector3.one * particle.size * Mathf.Min(1f, envelope * 3f);
             }
         }
+        void SetPlayfieldTop(float top)
+        {
+            if (Mathf.Approximately(top, laidOutTop) && laidOutCeiling == ceiling) return;
+            PlayfieldTop = laidOutTop = top; laidOutCeiling = ceiling;
+            float extra = top - TankTop;
+            foreach (var part in stretchingParts)
+            {
+                part.shape.localPosition = part.position + Vector3.up * (extra * .5f);
+                part.shape.localScale = new Vector3(1, (part.height + extra) / part.height, 1);
+            }
+            foreach (var part in topDetails) part.shape.localPosition = part.position + Vector3.up * extra;
+            // The visible water and the actual physics boundaries grow together.
+            if (leftWall != null && rightWall != null && ceiling != null)
+            {
+                float height = top - TankBottom, center = (top + TankBottom) * .5f;
+                leftWall.transform.localPosition = new Vector3(-TankHalfWidth - .125f, center, -.15f);
+                rightWall.transform.localPosition = new Vector3(TankHalfWidth + .125f, center, -.15f);
+                leftWall.size = rightWall.size = new Vector3(.25f, height + .4f, 2f);
+                ceiling.transform.localPosition = new Vector3(0, top + .1f, -.15f);
+            }
+        }
+
         void FixedUpdate()
         {
             if (game == null || !game.Playing) return;

@@ -33,7 +33,7 @@ namespace PocketToys.Tests
         [UnityTearDown]
         public IEnumerator Teardown()
         {
-            Time.timeScale = 1f; Object.Destroy(root); GameSession.SavePathOverride = null;
+            Time.timeScale = 1f; ToyPresentation.SafeAreaOverride = null; Object.Destroy(root); GameSession.SavePathOverride = null;
             yield return null;
             if (Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true);
         }
@@ -290,15 +290,15 @@ namespace PocketToys.Tests
                 for (int step = 0; step < 250 && ring.Body.position.x * side < 2.92f; step++)
                     yield return new WaitForFixedUpdate();
                 Assert.That(ring.Body.position.x * side, Is.GreaterThan(2.9f), "Steering must reach the expanded outer lane.");
-                for (int tap = 0; tap < 10; tap++)
+                for (int tap = 0; tap < 24 && ring.Body.position.y < game.Presentation.PlayfieldTop - .6f; tap++)
                 {
                     game.Pump(side < 0);
                     yield return new WaitForSeconds(.25f);
                 }
                 Assert.That(ring.Body.position.x * side, Is.GreaterThan(2.9f), "Pumping must not drag a ring back toward the center.");
-                Assert.That(ring.Body.position.y, Is.GreaterThan(ToyPresentation.TankTop - .6f), "The corner jet must reach the top of the expanded tank.");
+                Assert.That(ring.Body.position.y, Is.GreaterThan(game.Presentation.PlayfieldTop - .6f), "The corner jet must reach the top of the expanded tank.");
                 Assert.That(Mathf.Abs(ring.Body.position.x), Is.LessThan(ToyPresentation.TankHalfWidth - .3f));
-                Assert.That(ring.Body.position.y, Is.LessThan(ToyPresentation.TankTop - .15f));
+                Assert.That(ring.Body.position.y, Is.LessThan(game.Presentation.PlayfieldTop - .15f));
                 game.Sensor.SetVirtualTilt(-side);
                 yield return new WaitForSeconds(1.1f);
                 Assert.That(ring.Body.position.x * side, Is.LessThan(2.5f), "A ring must be able to steer back out of a corner.");
@@ -362,16 +362,59 @@ namespace PocketToys.Tests
         [UnityTest]
         public IEnumerator TallPortraitKeepsToyControlsAligned()
         {
-            PlayModeWindow.SetCustomRenderingResolution(360, 800, "Tall portrait");
-            game.StartLevel(0); game.Settings.reduceMotion = true;
-            yield return null; yield return null;
-            Capture("tall-portrait", 360, 800);
-            foreach (var button in game.Hud.GetComponentsInChildren<PumpPress>())
+            foreach (var size in new[] { new Vector2Int(360, 800), new Vector2Int(390, 844), new Vector2Int(375, 667) })
             {
-                var rect = button.GetComponent<RectTransform>();
-                var corners = new Vector3[4]; rect.GetWorldCorners(corners);
-                var screen = game.Presentation.Camera.WorldToScreenPoint(rect.position);
-                Assert.That(screen.x, Is.InRange(0f, 360f)); Assert.That(screen.y, Is.InRange(0f, 800f));
+                PlayModeWindow.SetCustomRenderingResolution((uint)size.x, (uint)size.y, "Phone portrait");
+                ToyPresentation.SafeAreaOverride = new Rect(0, 24, size.x, size.y - 68);
+                game.StartLevel(0); game.Settings.reduceMotion = true;
+                yield return new WaitForSeconds(.2f);
+                Canvas.ForceUpdateCanvases();
+                Capture("phone-" + size.x + "x" + size.y, size.x, size.y);
+                var camera = game.Presentation.Camera;
+                var safe = ToyPresentation.SafeScreenRect;
+                foreach (var button in game.Hud.GetComponentsInChildren<PumpPress>())
+                {
+                    var world = button.name == "Left pump" ? game.Presentation.LeftButton : game.Presentation.RightButton;
+                    Vector2 actual = camera.WorldToScreenPoint(button.transform.position);
+                    Vector2 expected = camera.WorldToScreenPoint(world.position);
+                    Assert.That(Vector2.Distance(actual, expected), Is.LessThan(2f), "Touch targets must align with the physical pumps.");
+                    Assert.IsTrue(safe.Contains(actual));
+                }
+                var settings = game.Hud.GetComponentsInChildren<Button>().Single(x => x.name == "Game settings");
+                var corners = new Vector3[4]; settings.GetComponent<RectTransform>().GetWorldCorners(corners);
+                foreach (var corner in corners) Assert.IsTrue(safe.Contains(camera.WorldToScreenPoint(corner)), "Settings must clear the notch and safe edges.");
+                float waterWidth = camera.WorldToScreenPoint(new Vector3(ToyPresentation.TankHalfWidth, 0, 0)).x - camera.WorldToScreenPoint(new Vector3(-ToyPresentation.TankHalfWidth, 0, 0)).x;
+                Assert.That(waterWidth / size.x, Is.GreaterThan(.85f), "The camera must reframe when the phone aspect changes.");
+                float top = camera.WorldToScreenPoint(new Vector3(0, game.Presentation.PlayfieldTop, 0)).y;
+                float bottom = camera.WorldToScreenPoint(new Vector3(0, ToyPresentation.TankBottom, 0)).y;
+                Assert.That((top - bottom) / safe.height, Is.GreaterThan(.67f), "The actual tank must occupy most of the safe screen height.");
+                Assert.That(game.Hud.GetComponentsInChildren<Button>().Length, Is.EqualTo(1), "Gameplay keeps one compact menu button.");
+                settings.onClick.Invoke(); Assert.That(game.Screen, Is.EqualTo(GameScreen.Paused));
+                var position = game.Rings[0].Body.position; yield return new WaitForSeconds(.1f);
+                Assert.That(game.Rings[0].Body.position, Is.EqualTo(position));
+                Assert.IsTrue(game.Hud.GetComponentsInChildren<Button>().Any(x => x.name == "LEVELS"));
+                game.Resume(); Assert.IsTrue(game.Playing);
+            }
+        }
+
+        [Test]
+        public void PumpUsesGentleBubbleClipWithoutClicksOrClipping()
+        {
+            game.Audio.Configure(true, false, false); game.Audio.Pump(true);
+            var source = game.Audio.GetComponents<AudioSource>().Single(x => x.clip != null && x.clip.name == "Gentle bubble cluster");
+            var data = new float[source.clip.samples]; Assert.IsTrue(source.clip.GetData(data, 0));
+            Assert.That(data.Max(x => Mathf.Abs(x)), Is.InRange(.08f, .35f));
+            Assert.That(Mathf.Abs(data[0]) + Mathf.Abs(data[data.Length - 1]), Is.LessThan(.0001f));
+            Assert.That(source.volume, Is.LessThanOrEqualTo(.6f));
+            for (int i = 1; i < data.Length; i++) Assert.That(Mathf.Abs(data[i] - data[i - 1]), Is.LessThan(.08f));
+            Directory.CreateDirectory("Logs/Previews");
+            using (var writer = new BinaryWriter(File.Create("Logs/Previews/gentle-bubbles.wav")))
+            {
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); writer.Write(36 + data.Length * 2);
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt ")); writer.Write(16); writer.Write((short)1); writer.Write((short)1);
+                writer.Write(source.clip.frequency); writer.Write(source.clip.frequency * 2); writer.Write((short)2); writer.Write((short)16);
+                writer.Write(System.Text.Encoding.ASCII.GetBytes("data")); writer.Write(data.Length * 2);
+                foreach (float sample in data) writer.Write((short)(sample * source.volume * short.MaxValue));
             }
         }
 
@@ -387,7 +430,7 @@ namespace PocketToys.Tests
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0); texture.Apply();
                 Directory.CreateDirectory("Logs/Previews"); File.WriteAllBytes("Logs/Previews/" + name + ".png", texture.EncodeToPNG());
             }
-            finally { camera.targetTexture = old; RenderTexture.active = active; Object.Destroy(target); Object.Destroy(texture); }
+            finally { camera.targetTexture = old; camera.ResetAspect(); RenderTexture.active = active; Object.Destroy(target); Object.Destroy(texture); }
         }
     }
 }
